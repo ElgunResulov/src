@@ -15,6 +15,7 @@ function odenis_ensure_columns(mysqli $conn): void {
     $columns = [
         'novbeti_odenis_tarixi' => "ALTER TABLE qeydiyyatar ADD COLUMN novbeti_odenis_tarixi DATE NULL DEFAULT NULL AFTER ilkin_odenis",
         'son_odenis_xatirlatma' => "ALTER TABLE qeydiyyatar ADD COLUMN son_odenis_xatirlatma DATE NULL DEFAULT NULL AFTER novbeti_odenis_tarixi",
+        'endirim_meqdar' => "ALTER TABLE qeydiyyatar ADD COLUMN endirim_meqdar DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER tehsil_haqqi",
     ];
 
     foreach ($columns as $name => $sql) {
@@ -131,11 +132,22 @@ function odenis_advance_due_date(string $currentDue): string {
     return $due->format('Y-m-d');
 }
 
-function odenis_monthly_amount(float $tehsilHaqqi, string $odenisNovu): float {
+function odenis_effective_fee(float $tehsilHaqqi, float $endirimMeqdar = 0.0): float {
+    return max(0.0, $tehsilHaqqi - max(0.0, $endirimMeqdar));
+}
+
+function odenis_monthly_amount(float $tehsilHaqqi, string $odenisNovu, float $endirimMeqdar = 0.0): float {
     if ($odenisNovu === 'ayliq') {
-        return $tehsilHaqqi;
+        return odenis_effective_fee($tehsilHaqqi, $endirimMeqdar);
     }
     return 0.0;
+}
+
+function odenis_row_effective_fee(array $row): float {
+    return odenis_effective_fee(
+        (float) ($row['tehsil_haqqi'] ?? 0),
+        (float) ($row['endirim_meqdar'] ?? 0)
+    );
 }
 
 function odenis_format_az_date(string $date): string {
@@ -305,7 +317,7 @@ function process_payment_reminders(mysqli $conn): array {
     $monthStart = date('Y-m-01');
 
     $sql = "
-        SELECT q.id, q.u_id, q.telebe_ad_soyad, q.tehsil_haqqi, q.odenis_novu,
+        SELECT q.id, q.u_id, q.telebe_ad_soyad, q.tehsil_haqqi, q.endirim_meqdar, q.odenis_novu,
                q.novbeti_odenis_tarixi, q.son_odenis_xatirlatma,
                COALESCE(NULLIF(q.form_email, ''), t.reg_email, t.poct) AS email,
                t.active_status
@@ -340,7 +352,11 @@ function process_payment_reminders(mysqli $conn): array {
         }
 
         $fullName = str_replace('.', ' ', (string) $row['telebe_ad_soyad']);
-        $amount = odenis_monthly_amount((float) $row['tehsil_haqqi'], (string) $row['odenis_novu']);
+        $amount = odenis_monthly_amount(
+            (float) $row['tehsil_haqqi'],
+            (string) $row['odenis_novu'],
+            (float) ($row['endirim_meqdar'] ?? 0)
+        );
         $dueDate = (string) $row['novbeti_odenis_tarixi'];
 
         if (sendPaymentReminderEmail($email, $fullName, $amount, $dueDate, (string) $row['odenis_novu'])) {

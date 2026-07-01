@@ -188,6 +188,8 @@ $form_data = [
     'odenis_novu' => 'ayliq',
     'tehsil_haqqi' => '',
     'baslama_tarixi' => date('Y-m-d'),
+    'endirim_var' => false,
+    'endirim_meqdar' => '',
 ];
 
 function form_val(string $key): string {
@@ -212,6 +214,11 @@ function form_radio(string $name, string $value): string {
 function form_selected(string $name, string $value): string {
     global $form_data;
     return (($form_data[$name] ?? '') === $value) ? 'selected' : '';
+}
+
+function form_check(string $name): string {
+    global $form_data;
+    return !empty($form_data[$name]) ? 'checked' : '';
 }
 
 if (isset($_GET['success']) && !empty($_SESSION['qeydiyyat_form_data'])) {
@@ -277,6 +284,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
         }
 
         $tehsil_haqqi = (float) $tehsil_haqqi_raw;
+        $endirim_var = isset($_POST['endirim_var']);
+        $endirim_meqdar = 0.0;
+        if ($endirim_var) {
+            $endirim_raw = str_replace(',', '.', trim($_POST['endirim_meqdar'] ?? ''));
+            if (!is_numeric($endirim_raw) || (float) $endirim_raw <= 0) {
+                throw new Exception('Endirim məbləği düzgün daxil edilməyib.');
+            }
+            $endirim_meqdar = (float) $endirim_raw;
+            if ($endirim_meqdar >= $tehsil_haqqi) {
+                throw new Exception('Endirim məbləği təhsil haqqından az olmalıdır.');
+            }
+        }
+
         $ilkin_odenis = 0.0;
         $novbeti_odenis_tarixi = odenis_next_due_date($baslama_tarixi, $odenis_novu);
         $vetandasliq = 'Azərbaycan';
@@ -328,24 +348,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
 
         // qeydiyyatar
         $qeyd_query = "INSERT INTO qeydiyyatar 
-            (u_id, company_id, telebe_ad_soyad, baslama_tarixi, tehsil_haqqi, odenis_novu, ilkin_odenis,
+            (u_id, company_id, telebe_ad_soyad, baslama_tarixi, tehsil_haqqi, endirim_meqdar, odenis_novu, ilkin_odenis,
              novbeti_odenis_tarixi, tedris_ili, vetandasliq, muellim_adi, ixtisas_adi,
              form_ata_adi, form_universitet, form_ixtisas, form_qebul_ili, form_dogum_tarixi, form_is_nomresi, 
              form_telefon, form_fin_kod, form_email, form_bakalavr_bali, 
              form_magistr_bali, form_bolme, form_tedris, form_vaxt, form_services, 
              form_sinif_qeyd, form_menbe, form_elave_qeyd_1, form_elave_qeyd_2, 
              form_elave_qeyd_3, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
 
         $qeyd_stmt = mysqli_prepare($conn, $qeyd_query);
         mysqli_stmt_bind_param(
             $qeyd_stmt,
-            'sisssdsdssssssssssssssssssssssss',
+            'sissddsdsssssssssssssssssssssssssss',
             $u_id,
             $company_id,
             $ad_soyad_db,
             $baslama_tarixi,
             $tehsil_haqqi,
+            $endirim_meqdar,
             $odenis_novu,
             $ilkin_odenis,
             $novbeti_odenis_tarixi,
@@ -455,6 +476,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
             'odenis_novu' => $odenis_novu,
             'tehsil_haqqi' => $tehsil_haqqi_raw,
             'baslama_tarixi' => $baslama_tarixi,
+            'endirim_var' => $endirim_var,
+            'endirim_meqdar' => $endirim_var ? (string) $endirim_meqdar : '',
         ];
         $_SESSION['qeydiyyat_success'] = true;
         $_SESSION['last_qeydiyyat_print_id'] = $print_id;
@@ -494,6 +517,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
             'odenis_novu' => $_POST['odenis_novu'] ?? 'ayliq',
             'tehsil_haqqi' => trim($_POST['tehsil_haqqi'] ?? ''),
             'baslama_tarixi' => trim($_POST['baslama_tarixi'] ?? date('Y-m-d')),
+            'endirim_var' => isset($_POST['endirim_var']),
+            'endirim_meqdar' => trim($_POST['endirim_meqdar'] ?? ''),
         ]);
     }
 }
@@ -524,6 +549,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
     .form-group label{font-size:15px;font-weight:600;color:#1e3a8a;margin-bottom:1px}
     .form-group input{padding:8px 8px;border:1px solid #bfdbfe;border-radius:10px;font-size:15px;background:#f0f9ff;transition:all .25s}
     .payment-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px 40px;margin-bottom:10px}
+    .payment-discount{margin-bottom:10px}
+    .discount-check{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:#1e3a8a;cursor:pointer;margin-bottom:12px}
+    .discount-check input[type="checkbox"]{width:18px;height:18px;accent-color:#1d4ed8;cursor:pointer}
+    .discount-field{display:none;margin-top:4px}
+    .discount-field.show{display:block}
+    .discount-net{margin-top:10px;font-size:14px;color:#166534;background:#ecfdf5;border:1px solid #86efac;border-radius:12px;padding:12px 16px;display:none}
+    .discount-net.show{display:block}
     .payment-summary{background:#fef9c3;border:1px solid #fde047;border-radius:12px;padding:16px 18px;margin-top:10px;font-size:14px;color:#713f12}
     .payment-summary strong{color:#854d0e}
     .form-group select{padding:8px;border:1px solid #bfdbfe;border-radius:10px;font-size:15px;background:#f0f9ff}
@@ -575,6 +607,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
         .header h1{font-size:22px;letter-spacing:1px}
         .header img{height:45px}
         .form-wrapper{grid-template-columns:1fr;gap:18px}
+        .payment-grid{grid-template-columns:1fr;gap:18px}
+        .discount-field .form-group{max-width:100%!important}
         .form-group label{font-size:14px}
         .form-group input{padding:10px;font-size:14px}
         .form-group-double{flex-direction:column;gap:18px}
@@ -839,6 +873,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
                     <input type="number" step="0.01" min="0.01" name="tehsil_haqqi" id="tehsil_haqqi" value="<?= form_val('tehsil_haqqi') ?>" required>
                 </div>
             </div>
+            <div class="payment-discount">
+                <label class="discount-check" for="endirimVar">
+                    <input type="checkbox" id="endirimVar" name="endirim_var" value="1" <?= form_check('endirim_var') ?>>
+                    Endirim tətbiq et
+                </label>
+                <div class="discount-field<?= !empty($form_data['endirim_var']) ? ' show' : '' ?>" id="endirimFieldWrap">
+                    <div class="form-group" style="max-width:320px">
+                        <label for="endirim_meqdar">Endirim məbləği (AZN):</label>
+                        <input type="number" step="0.01" min="0.01" name="endirim_meqdar" id="endirim_meqdar" value="<?= form_val('endirim_meqdar') ?>" placeholder="Məs: 20.00">
+                    </div>
+                </div>
+                <div class="discount-net<?= !empty($form_data['endirim_var']) ? ' show' : '' ?>" id="odenisNetSummary">
+                    Ödəniləcək məbləğ: <strong id="odenisNetValue">—</strong> AZN
+                </div>
+            </div>
             <div class="payment-summary">
                 <span id="ayliqOdenisInfo">Aylıq ödəniş seçildikdə hər ayın sonunda ödəniş xatırlatması e-poçtunuza göndəriləcək.</span>
             </div>
@@ -937,6 +986,44 @@ document.addEventListener('DOMContentLoaded', function() {
         updateOdenisInfo();
     }
 
+    const endirimVar = document.getElementById('endirimVar');
+    const endirimFieldWrap = document.getElementById('endirimFieldWrap');
+    const endirimMeqdar = document.getElementById('endirim_meqdar');
+    const odenisNetSummary = document.getElementById('odenisNetSummary');
+    const odenisNetValue = document.getElementById('odenisNetValue');
+    const tehsilHaqqiInput = document.getElementById('tehsil_haqqi');
+
+    function updateEndirimUI() {
+        const enabled = !!(endirimVar && endirimVar.checked);
+        if (endirimFieldWrap) endirimFieldWrap.classList.toggle('show', enabled);
+        if (odenisNetSummary) odenisNetSummary.classList.toggle('show', enabled);
+        if (endirimMeqdar) {
+            endirimMeqdar.required = enabled;
+            if (!enabled) endirimMeqdar.value = '';
+        }
+        updateNetPrice();
+    }
+
+    function updateNetPrice() {
+        if (!odenisNetValue || !tehsilHaqqiInput) return;
+        const tehsil = parseFloat(tehsilHaqqiInput.value || '0');
+        const endirim = endirimVar && endirimVar.checked ? parseFloat(endirimMeqdar?.value || '0') : 0;
+        if (tehsil > 0 && endirim > 0 && endirim < tehsil) {
+            odenisNetValue.textContent = (tehsil - endirim).toFixed(2);
+        } else if (tehsil > 0 && (!endirimVar || !endirimVar.checked)) {
+            odenisNetValue.textContent = tehsil.toFixed(2);
+        } else {
+            odenisNetValue.textContent = '—';
+        }
+    }
+
+    if (endirimVar) {
+        endirimVar.addEventListener('change', updateEndirimUI);
+        updateEndirimUI();
+    }
+    if (endirimMeqdar) endirimMeqdar.addEventListener('input', updateNetPrice);
+    if (tehsilHaqqiInput) tehsilHaqqiInput.addEventListener('input', updateNetPrice);
+
     const form = document.querySelector('form[method="POST"]');
     if (form) {
         form.addEventListener('submit', function(e) {
@@ -944,6 +1031,19 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!(tehsil > 0)) {
                 e.preventDefault();
                 alert('Təhsil haqqı düzgün daxil edilməyib.');
+                return;
+            }
+            if (endirimVar && endirimVar.checked) {
+                const endirim = parseFloat(endirimMeqdar?.value || '0');
+                if (!(endirim > 0)) {
+                    e.preventDefault();
+                    alert('Endirim məbləğini daxil edin.');
+                    return;
+                }
+                if (endirim >= tehsil) {
+                    e.preventDefault();
+                    alert('Endirim məbləği təhsil haqqından az olmalıdır.');
+                }
             }
         });
     }

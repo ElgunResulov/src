@@ -107,6 +107,7 @@ $listSql = "
         q.u_id,
         q.telebe_ad_soyad,
         q.tehsil_haqqi,
+        q.endirim_meqdar,
         q.odenis_novu,
         q.ilkin_odenis,
         q.novbeti_odenis_tarixi,
@@ -407,7 +408,12 @@ include('navbar_sidebar.php');
                             <?php
                                 $status = odenis_status_meta($row);
                                 $displayName = str_replace('.', ' ', (string) $row['telebe_ad_soyad']);
-                                $monthlyAmount = odenis_monthly_amount((float) $row['tehsil_haqqi'], (string) $row['odenis_novu']);
+                                $monthlyAmount = odenis_monthly_amount(
+                                    (float) $row['tehsil_haqqi'],
+                                    (string) $row['odenis_novu'],
+                                    (float) ($row['endirim_meqdar'] ?? 0)
+                                );
+                                $effectiveFee = odenis_row_effective_fee($row);
                                 $dueDate = (string) ($row['novbeti_odenis_tarixi'] ?? '');
                                 $dueDateValid = odenis_is_valid_date($dueDate);
                             ?>
@@ -424,6 +430,10 @@ include('navbar_sidebar.php');
                                 </td>
                                 <td data-label="Təhsil haqqı">
                                     <strong><?= number_format((float) $row['tehsil_haqqi'], 2, '.', '') ?> AZN</strong>
+                                    <?php if ((float) ($row['endirim_meqdar'] ?? 0) > 0): ?>
+                                        <div class="student-meta">Endirim: −<?= number_format((float) $row['endirim_meqdar'], 2, '.', '') ?> AZN</div>
+                                        <div class="student-meta">Ödəniləcək: <strong><?= number_format($effectiveFee, 2, '.', '') ?> AZN</strong></div>
+                                    <?php endif; ?>
                                     <?php if ($row['odenis_novu'] === 'ayliq'): ?>
                                         <div class="student-meta">Aylıq: <?= number_format($monthlyAmount, 2, '.', '') ?> AZN</div>
                                     <?php endif; ?>
