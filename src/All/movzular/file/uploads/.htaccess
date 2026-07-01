@@ -1,0 +1,27 @@
+Options -Indexes
+
+# Uploaded files must never execute as code.
+<FilesMatch "\.(php[0-9]?|phtml|phar|shtml|cgi|pl|asp|aspx|jsp|sh|bat|cmd|ps1)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Block database dumps, backups, configs, and logs from direct download.
+<FilesMatch "\.(sql|bak|backup|old|orig|save|swp|log|ini|conf|config|env|yml|yaml|json|lock|pem|key|crt|p12|pfx)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

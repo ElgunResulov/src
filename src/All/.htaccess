@@ -1,0 +1,55 @@
+Options -Indexes -MultiViews
+ServerSignature Off
+
+RewriteEngine On
+
+# Block dangerous and unsupported HTTP methods before PHP runs.
+RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK|PUT|PATCH|CONNECT)$ [NC]
+RewriteRule ^ - [R=405,L]
+
+# Block HTTP method override bypass attempts.
+RewriteCond %{HTTP:X-HTTP-Method-Override} !^$ [OR]
+RewriteCond %{HTTP:X-Method-Override} !^$ [OR]
+RewriteCond %{HTTP:X-HTTP-Method} !^$ [OR]
+RewriteCond %{QUERY_STRING} (^|&)_(method|METHOD)= [NC,OR]
+RewriteCond %{QUERY_STRING} (^|&)method_override= [NC]
+RewriteRule ^ - [R=400,L]
+
+# Block path traversal and null-byte style bypass attempts.
+RewriteCond %{THE_REQUEST} (\.\./|\.\.\\|%2e%2e|%252e%252e|%00) [NC,OR]
+RewriteCond %{REQUEST_URI} (\.\./|\.\.\\|%2e%2e|%252e%252e|%00) [NC]
+RewriteRule ^ - [R=400,L]
+
+# Never expose sensitive project, config, dump, backup, or dependency files.
+<FilesMatch "(^\.|\.env|composer\.(json|lock)|package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|webpack\..*|vite\..*|phpunit\.xml|README|CHANGELOG|LICENSE|.*\.(sql|bak|backup|old|orig|save|swp|log|ini|conf|config|inc|md|yml|yaml|json|lock|sh|bat|cmd|ps1|pem|key|crt|p12|pfx))$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Prevent executing PHP from common upload/material directories.
+RewriteRule (^|/)(uploads|Uploads|upload|files|materiallar|qrcodes|profiles)/.*\.(php[0-9]?|phtml|phar|shtml|cgi|pl|asp|aspx|jsp)$ - [R=403,L,NC]
+
+# Security headers. Kept compatible with current inline scripts/styles.
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "same-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    Header always set Cross-Origin-Resource-Policy "same-origin"
+    Header always set X-XSS-Protection "0"
+    Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://stackpath.bootstrapcdn.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://stackpath.bootstrapcdn.com https://code.jquery.com; connect-src 'self'; media-src 'self'; worker-src 'self' blob:"
+</IfModule>
+
+# Rewrite clean URLs to .php if they exist.
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^([^/]+)$ $1.php [L]
+
+# Custom 404 page
+ErrorDocument 404 /src/All/404.php

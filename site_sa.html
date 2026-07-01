@@ -1,0 +1,2238 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Xəbər İdarəetməsi | Təhsil Sistemi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --primary-light: #e0e7ff;
+    --secondary: #0f172a;
+    --secondary-light: #334155;
+    --accent: #f59e0b;
+    --accent-light: #fef3c7;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --info: #06b6d4;
+    --info-light: #cffafe;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1e293b;
+    --gray-900: #0f172a;
+    --white: #ffffff;
+    --black: #000000;
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --gradient-accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: var(--gray-800);
+    background: var(--gray-50);
+    overflow-x: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    background: var(--white);
+    box-shadow: var(--shadow-xl);
+    z-index: 1000;
+    transition: transform 0.3s ease;
+    border-right: 1px solid var(--gray-200);
+}
+
+.sidebar-header {
+    padding: 32px 24px;
+    border-bottom: 1px solid var(--gray-200);
+    background: var(--gradient-primary);
+    color: white;
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.sidebar-logo-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    overflow: hidden;
+}
+
+.sidebar-logo-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+.sidebar-nav {
+    padding: 24px 0;
+}
+
+.nav-item {
+    margin: 4px 16px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    color: var(--gray-600);
+    text-decoration: none;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    background: var(--primary-light);
+    color: var(--primary);
+    transform: translateX(4px);
+}
+
+.nav-link i {
+    font-size: 20px;
+    width: 24px;
+    text-align: center;
+}
+
+/* Main Content */
+.main-content {
+    margin-left: 280px;
+    min-height: 100vh;
+    background: var(--gray-50);
+}
+
+.top-bar {
+    background: var(--white);
+    padding: 20px 32px;
+    box-shadow: var(--shadow);
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.page-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-avatar {
+    width: 48px;
+    height: 48px;
+    background: var(--gradient-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.content-area {
+    padding: 32px;
+}
+
+/* Section Management */
+.section {
+    display: none;
+}
+
+.section.active {
+    display: block;
+}
+
+/* Cards */
+.card {
+    background: var(--white);
+    border-radius: 20px;
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 32px;
+    overflow: hidden;
+    border: 1px solid var(--gray-200);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-xl);
+}
+
+.card-header {
+    padding: 32px 40px;
+    border-bottom: 1px solid var(--gray-200);
+    background: var(--gray-50);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+}
+
+.card-content {
+    padding: 40px;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.stat-card {
+    background: var(--white);
+    padding: 32px;
+    border-radius: 20px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--gray-200);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+}
+
+.stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.stat-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--primary-light);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    font-size: 24px;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+}
+
+.stat-description {
+    color: var(--gray-600);
+    font-size: 14px;
+}
+
+/* Buttons */
+.btn {
+    padding: 16px 32px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn:hover::before {
+    left: 100%;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: var(--white);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+}
+
+.btn-success {
+    background: var(--success);
+    color: var(--white);
+}
+
+.btn-success:hover {
+    background: #059669;
+    transform: translateY(-2px);
+}
+
+.btn-warning {
+    background: var(--warning);
+    color: var(--white);
+}
+
+.btn-warning:hover {
+    background: #d97706;
+    transform: translateY(-2px);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: var(--white);
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-2px);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+}
+
+.btn-outline:hover {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.btn-sm {
+    padding: 12px 20px;
+    font-size: 14px;
+}
+
+/* Forms */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--gray-700);
+    font-size: 15px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+    width: 100%;
+    padding: 16px 20px;
+    border: 2px solid var(--gray-200);
+    border-radius: 12px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    background: var(--white);
+    font-family: inherit;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.file-upload {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.file-upload-input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+.file-upload-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    border: 2px dashed var(--gray-300);
+    border-radius: 12px;
+    background: var(--gray-50);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.file-upload-label:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.file-upload-icon {
+    font-size: 48px;
+    color: var(--gray-400);
+    margin-bottom: 16px;
+}
+
+.file-upload-text {
+    color: var(--gray-600);
+    font-weight: 500;
+}
+
+/* Table */
+.table-container {
+    overflow-x: auto;
+    border-radius: 16px;
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: 20px;
+    text-align: left;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+th {
+    background: var(--gray-50);
+    color: var(--gray-700);
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+tr:hover {
+    background: var(--gray-50);
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+.table-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+}
+
+.action-btn.edit {
+    background: var(--info-light);
+    color: var(--info);
+}
+
+.action-btn.delete {
+    background: var(--danger-light);
+    color: var(--danger);
+}
+
+.action-btn.view {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+/* News Card */
+.news-card {
+    background: var(--white);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    transition: all 0.3s ease;
+    border: 1px solid var(--gray-200);
+    margin-bottom: 24px;
+}
+
+.news-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+}
+
+.news-card-image {
+    height: 200px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.news-card-badge {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: var(--primary);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.news-card-content {
+    padding: 24px;
+}
+
+.news-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+    color: var(--gray-500);
+    font-size: 14px;
+}
+
+.news-card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--gray-900);
+    line-height: 1.3;
+}
+
+.news-card-excerpt {
+    color: var(--gray-600);
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.news-card-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* Status Badge */
+.status-badge {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-published {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+.status-draft {
+    background: var(--warning-light);
+    color: var(--warning);
+}
+
+.status-archived {
+    background: var(--gray-200);
+    color: var(--gray-600);
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    backdrop-filter: blur(8px);
+}
+
+.modal {
+    background: var(--white);
+    border-radius: 24px;
+    max-width: 800px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-2xl);
+    border: 1px solid var(--gray-200);
+}
+
+.modal-header {
+    padding: 32px 40px;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--gray-50);
+}
+
+.modal-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--gray-500);
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.modal-body {
+    padding: 40px;
+}
+
+.modal-footer {
+    padding: 32px 40px;
+    border-top: 1px solid var(--gray-200);
+    display: flex;
+    gap: 16px;
+    justify-content: flex-end;
+    background: var(--gray-50);
+}
+
+/* Rich Text Editor Simulation */
+.editor-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border: 2px solid var(--gray-200);
+    border-bottom: 1px solid var(--gray-200);
+    border-radius: 12px 12px 0 0;
+    background: var(--gray-50);
+}
+
+.editor-btn {
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--gray-600);
+}
+
+.editor-btn:hover {
+    background: var(--gray-200);
+    color: var(--gray-800);
+}
+
+.editor-content {
+    border: 2px solid var(--gray-200);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    min-height: 200px;
+    padding: 16px;
+    font-family: inherit;
+    font-size: 16px;
+    resize: vertical;
+    outline: none;
+}
+
+.editor-content:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.editor-content:empty::before {
+    content: attr(placeholder);
+    color: var(--gray-400);
+    font-style: italic;
+}
+
+/* Media Grid */
+#mediaGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 24px;
+}
+
+.media-item {
+    background: var(--white);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+    border: 1px solid var(--gray-200);
+}
+
+.media-item:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.media-preview {
+    height: 150px;
+    background: var(--gray-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-400);
+    font-size: 48px;
+}
+
+.media-info {
+    padding: 16px;
+}
+
+.media-name {
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.media-size {
+    color: var(--gray-500);
+    font-size: 12px;
+}
+
+/* Mobile Menu Button */
+.mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--gray-700);
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.mobile-menu-btn:hover {
+    background: var(--gray-100);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+
+    .mobile-menu-btn {
+        display: block;
+    }
+
+    .top-bar {
+        padding-left: 80px;
+        position: relative;
+    }
+
+    .mobile-menu-btn {
+        position: absolute;
+        left: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: block;
+    }
+}
+
+@media (max-width: 768px) {
+    .content-area {
+        padding: 16px;
+    }
+
+    .top-bar {
+        padding: 16px 20px 16px 80px;
+    }
+
+    .page-title {
+        font-size: 20px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .card-content,
+    .modal-body {
+        padding: 24px;
+    }
+
+    .card-header {
+        padding: 24px;
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .user-menu {
+        flex-direction: column;
+        gap: 8px;
+        text-align: right;
+    }
+
+    .table-container {
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 12px 8px;
+    }
+
+    .editor-toolbar {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .editor-btn {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .sidebar {
+        width: 100%;
+    }
+
+    .modal {
+        width: 95%;
+        margin: 20px;
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 20px;
+    }
+
+    .btn {
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+
+    .stat-card {
+        padding: 20px;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.slide-in {
+    animation: slideIn 0.6s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid var(--primary);
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Utility Classes */
+.text-center {
+    text-align: center;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-success {
+    color: var(--success);
+}
+
+.text-warning {
+    color: var(--warning);
+}
+
+.text-danger {
+    color: var(--danger);
+}
+
+.text-info {
+    color: var(--info);
+}
+
+.text-muted {
+    color: var(--gray-500);
+}
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 8px; }
+.mb-2 { margin-bottom: 16px; }
+.mb-3 { margin-bottom: 24px; }
+.mb-4 { margin-bottom: 32px; }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: 8px; }
+.mt-2 { margin-top: 16px; }
+.mt-3 { margin-top: 24px; }
+.mt-4 { margin-top: 32px; }
+
+.ml-0 { margin-left: 0; }
+.ml-1 { margin-left: 8px; }
+.ml-2 { margin-left: 16px; }
+.ml-3 { margin-left: 24px; }
+.ml-4 { margin-left: 32px; }
+
+.mr-0 { margin-right: 0; }
+.mr-1 { margin-right: 8px; }
+.mr-2 { margin-right: 16px; }
+.mr-3 { margin-right: 24px; }
+.mr-4 { margin-right: 32px; }
+
+.p-0 { padding: 0; }
+.p-1 { padding: 8px; }
+.p-2 { padding: 16px; }
+.p-3 { padding: 24px; }
+.p-4 { padding: 32px; }
+
+.pt-0 { padding-top: 0; }
+.pt-1 { padding-top: 8px; }
+.pt-2 { padding-top: 16px; }
+.pt-3 { padding-top: 24px; }
+.pt-4 { padding-top: 32px; }
+
+.pb-0 { padding-bottom: 0; }
+.pb-1 { padding-bottom: 8px; }
+.pb-2 { padding-bottom: 16px; }
+.pb-3 { padding-bottom: 24px; }
+.pb-4 { padding-bottom: 32px; }
+
+.pl-0 { padding-left: 0; }
+.pl-1 { padding-left: 8px; }
+.pl-2 { padding-left: 16px; }
+.pl-3 { padding-left: 24px; }
+.pl-4 { padding-left: 32px; }
+
+.pr-0 { padding-right: 0; }
+.pr-1 { padding-right: 8px; }
+.pr-2 { padding-right: 16px; }
+.pr-3 { padding-right: 24px; }
+.pr-4 { padding-right: 32px; }
+
+.d-none { display: none; }
+.d-block { display: block; }
+.d-inline { display: inline; }
+.d-inline-block { display: inline-block; }
+.d-flex { display: flex; }
+.d-grid { display: grid; }
+
+.flex-row { flex-direction: row; }
+.flex-column { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-nowrap { flex-wrap: nowrap; }
+
+.justify-start { justify-content: flex-start; }
+.justify-center { justify-content: center; }
+.justify-end { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+.justify-around { justify-content: space-around; }
+
+.align-start { align-items: flex-start; }
+.align-center { align-items: center; }
+.align-end { align-items: flex-end; }
+.align-stretch { align-items: stretch; }
+
+.w-25 { width: 25%; }
+.w-50 { width: 50%; }
+.w-75 { width: 75%; }
+.w-100 { width: 100%; }
+
+.h-25 { height: 25%; }
+.h-50 { height: 50%; }
+.h-75 { height: 75%; }
+.h-100 { height: 100%; }
+
+.position-relative { position: relative; }
+.position-absolute { position: absolute; }
+.position-fixed { position: fixed; }
+.position-sticky { position: sticky; }
+
+.overflow-hidden { overflow: hidden; }
+.overflow-auto { overflow: auto; }
+.overflow-scroll { overflow: scroll; }
+
+.border { border: 1px solid var(--gray-200); }
+.border-top { border-top: 1px solid var(--gray-200); }
+.border-bottom { border-bottom: 1px solid var(--gray-200); }
+.border-left { border-left: 1px solid var(--gray-200); }
+.border-right { border-right: 1px solid var(--gray-200); }
+
+.rounded { border-radius: 8px; }
+.rounded-sm { border-radius: 4px; }
+.rounded-lg { border-radius: 12px; }
+.rounded-xl { border-radius: 16px; }
+.rounded-2xl { border-radius: 20px; }
+.rounded-full { border-radius: 50%; }
+
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow { box-shadow: var(--shadow); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+.shadow-xl { box-shadow: var(--shadow-xl); }
+.shadow-2xl { box-shadow: var(--shadow-2xl); }
+
+.bg-primary { background-color: var(--primary); }
+.bg-secondary { background-color: var(--secondary); }
+.bg-success { background-color: var(--success); }
+.bg-warning { background-color: var(--warning); }
+.bg-danger { background-color: var(--danger); }
+.bg-info { background-color: var(--info); }
+.bg-white { background-color: var(--white); }
+.bg-gray-50 { background-color: var(--gray-50); }
+.bg-gray-100 { background-color: var(--gray-100); }
+.bg-gray-200 { background-color: var(--gray-200); }
+
+.text-primary { color: var(--primary); }
+.text-secondary { color: var(--secondary); }
+.text-white { color: var(--white); }
+.text-gray-900 { color: var(--gray-900); }
+.text-gray-800 { color: var(--gray-800); }
+.text-gray-700 { color: var(--gray-700); }
+.text-gray-600 { color: var(--gray-600); }
+.text-gray-500 { color: var(--gray-500); }
+
+.font-light { font-weight: 300; }
+.font-normal { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.font-extrabold { font-weight: 800; }
+
+.text-xs { font-size: 12px; }
+.text-sm { font-size: 14px; }
+.text-base { font-size: 16px; }
+.text-lg { font-size: 18px; }
+.text-xl { font-size: 20px; }
+.text-2xl { font-size: 24px; }
+.text-3xl { font-size: 30px; }
+.text-4xl { font-size: 36px; }
+
+.leading-tight { line-height: 1.25; }
+.leading-snug { line-height: 1.375; }
+.leading-normal { line-height: 1.5; }
+.leading-relaxed { line-height: 1.625; }
+.leading-loose { line-height: 2; }
+
+.cursor-pointer { cursor: pointer; }
+.cursor-default { cursor: default; }
+.cursor-not-allowed { cursor: not-allowed; }
+
+.select-none { user-select: none; }
+.select-text { user-select: text; }
+.select-all { user-select: all; }
+
+.pointer-events-none { pointer-events: none; }
+.pointer-events-auto { pointer-events: auto; }
+
+/* Print Styles */
+@media print {
+    .sidebar {
+        display: none;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .top-bar {
+        display: none;
+    }
+    
+    .btn {
+        display: none;
+    }
+    
+    .modal-overlay {
+        display: none;
+    }
+    
+    .card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid var(--gray-300);
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    :root {
+        --primary: #0000ff;
+        --success: #008000;
+        --warning: #ff8c00;
+        --danger: #ff0000;
+        --gray-200: #000000;
+        --gray-300: #333333;
+        --gray-500: #666666;
+        --gray-700: #999999;
+    }
+    
+    .btn {
+        border: 2px solid currentColor;
+    }
+    
+    .card {
+        border: 2px solid var(--gray-300);
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    
+    .floating-element {
+        animation: none;
+    }
+    
+    .spinner {
+        animation: none;
+        border: 4px solid var(--primary);
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --white: #1a1a1a;
+        --gray-50: #262626;
+        --gray-100: #404040;
+        --gray-200: #525252;
+        --gray-300: #737373;
+        --gray-400: #a3a3a3;
+        --gray-500: #d4d4d4;
+        --gray-600: #e5e5e5;
+        --gray-700: #f5f5f5;
+        --gray-800: #fafafa;
+        --gray-900: #ffffff;
+    }
+    
+    body {
+        background-color: var(--white);
+        color: var(--gray-800);
+    }
+    
+    .card,
+    .modal,
+    .sidebar {
+        background-color: var(--gray-50);
+    }
+    
+    .form-input,
+    .form-select,
+    .form-textarea {
+        background-color: var(--gray-100);
+        border-color: var(--gray-300);
+        color: var(--gray-800);
+    }
+    
+    .table-container {
+        background-color: var(--gray-50);
+    }
+    
+    th {
+        background-color: var(--gray-100);
+    }
+}
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="sidebar-logo-icon">
+                    
+                </div>
+                <div>
+                    <div style="font-size: 18px;">Admin Panel</div>
+                    <div hidden style="font-size: 14px; opacity: 0.8;">Təhsil Sistemi</div>
+                </div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-item">
+                <a href="#dashboard" class="nav-link active" data-section="dashboard">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#news-list" class="nav-link" data-section="news-list">
+                    <i class="fas fa-newspaper"></i>
+                    <span>Xəbərlər</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#add-news" class="nav-link" data-section="add-news">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Yeni Xəbər</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#categories" class="nav-link" data-section="categories">
+                    <i class="fas fa-tags"></i>
+                    <span>Kateqoriyalar</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#media" class="nav-link" data-section="media">
+                    <i class="fas fa-images"></i>
+                    <span>Media Kitabxanası</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#analytics" class="nav-link" data-section="analytics">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Analitika</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#settings" class="nav-link" data-section="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Tənzimləmələr</span>
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="page-title" id="pageTitle">Dashboard</div>
+            <div class="user-menu">
+                <div style="text-align: right; margin-right: 16px;">
+                    <div style="font-weight: 600; color: var(--gray-900);">Admin</div>
+                    <div style="font-size: 14px; color: var(--gray-500);">Xəbər İdarəçisi</div>
+                </div>
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="section active">
+                <div class="stats-grid fade-in">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Ümumi Xəbərlər</div>
+                            <div class="stat-icon">
+                                <i class="fas fa-newspaper"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="totalNews">24</div>
+                        <div class="stat-description">Son 30 gündə 8 yeni xəbər</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Dərc Edilmiş</div>
+                            <div class="stat-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="publishedNews">18</div>
+                        <div class="stat-description">Aktiv xəbərlər</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Qaralama</div>
+                            <div class="stat-icon">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="draftNews">4</div>
+                        <div class="stat-description">Hazırlanır</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Arxivlənmiş</div>
+                            <div class="stat-icon">
+                                <i class="fas fa-archive"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="archivedNews">2</div>
+                        <div class="stat-description">Köhnə xəbərlər</div>
+                    </div>
+                </div>
+
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h3 class="card-title">Son Fəaliyyətlər</h3>
+                        <button class="btn btn-primary btn-sm" onclick="showSection('add-news')">
+                            <i class="fas fa-plus"></i> Yeni Xəbər
+                        </button>
+                    </div>
+                    <div class="card-content">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fəaliyyət</th>
+                                        <th>Xəbər</th>
+                                        <th>Tarix</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activityTable">
+                                    <tr>
+                                        <td><i class="fas fa-plus text-success"></i> Yeni xəbər əlavə edildi</td>
+                                        <td>Beynəlxalq Akkreditasiya</td>
+                                        <td>20 May 2024</td>
+                                        <td><span class="status-badge status-published">Dərc Edilib</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="fas fa-edit text-info"></i> Xəbər yeniləndi</td>
+                                        <td>Tədqiqat Mərkəzi</td>
+                                        <td>18 May 2024</td>
+                                        <td><span class="status-badge status-published">Dərc Edilib</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="fas fa-save text-warning"></i> Qaralama yadda saxlanıldı</td>
+                                        <td>Yeni Akademik İl</td>
+                                        <td>15 May 2024</td>
+                                        <td><span class="status-badge status-draft">Qaralama</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- News List Section -->
+            <div id="news-list" class="section">
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h3 class="card-title">Bütün Xəbərlər</h3>
+                        <div style="display: flex; gap: 16px;">
+                            <select class="form-select" style="width: auto;" id="filterStatus">
+                                <option value="">Bütün Statuslar</option>
+                                <option value="published">Dərc Edilmiş</option>
+                                <option value="draft">Qaralama</option>
+                                <option value="archived">Arxivlənmiş</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="showSection('add-news')">
+                                <i class="fas fa-plus"></i> Yeni Xəbər
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Başlıq</th>
+                                        <th>Kateqoriya</th>
+                                        <th>Müəllif</th>
+                                        <th>Tarix</th>
+                                        <th>Status</th>
+                                        <th>Əməliyyatlar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="newsTable">
+                                    <!-- News will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add News Section -->
+            <div id="add-news" class="section">
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h3 class="card-title">Yeni Xəbər Əlavə Et</h3>
+                    </div>
+                    <div class="card-content">
+                        <form id="newsForm">
+                            <div class="form-grid">
+                                <div>
+                                    <div class="form-group">
+                                        <label for="newsTitle" class="form-label">Başlıq *</label>
+                                        <input type="text" id="newsTitle" class="form-input" required placeholder="Xəbər başlığını daxil edin">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="newsCategory" class="form-label">Kateqoriya *</label>
+                                        <select id="newsCategory" class="form-select" required>
+                                            <option value="">Kateqoriya seçin</option>
+                                            <option value="Akkreditasiya">Akkreditasiya</option>
+                                            <option value="Tədqiqat">Tədqiqat</option>
+                                            <option value="Nailiyyət">Nailiyyət</option>
+                                            <option value="Qəbul">Qəbul</option>
+                                            <option value="Tədbir">Tədbir</option>
+                                            <option value="İnfrastruktur">İnfrastruktur</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="newsAuthor" class="form-label">Müəllif *</label>
+                                        <input type="text" id="newsAuthor" class="form-input" required placeholder="Müəllif adı">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="newsDate" class="form-label">Tarix *</label>
+                                        <input type="date" id="newsDate" class="form-input" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="newsStatus" class="form-label">Status *</label>
+                                        <select id="newsStatus" class="form-select" required>
+                                            <option value="draft">Qaralama</option>
+                                            <option value="published">Dərc Et</option>
+                                            <option value="archived">Arxivlə</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">
+                                            <input type="checkbox" id="newsFeatured" style="margin-right: 8px;">
+                                            Seçilmiş Xəbər (Ana səhifədə göstər)
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="form-group">
+                                        <label for="newsImage" class="form-label">Xəbər Şəkli</label>
+                                        <div class="file-upload">
+                                            <input type="file" id="newsImage" class="file-upload-input" accept="image/*">
+                                            <label for="newsImage" class="file-upload-label">
+                                                <div class="file-upload-icon">
+                                                    <i class="fas fa-cloud-upload-alt"></i>
+                                                </div>
+                                                <div class="file-upload-text">
+                                                    Şəkil yükləyin və ya buraya sürükləyin
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="newsExcerpt" class="form-label">Qısa Məzmun *</label>
+                                        <textarea id="newsExcerpt" class="form-textarea" required placeholder="Xəbərin qısa məzmunu (150-200 simvol)"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="newsContent" class="form-label">Xəbər Məzmunu *</label>
+                                <div class="editor-toolbar">
+                                    <button type="button" class="editor-btn" onclick="formatText('bold')">
+                                        <i class="fas fa-bold"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn" onclick="formatText('italic')">
+                                        <i class="fas fa-italic"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn" onclick="formatText('underline')">
+                                        <i class="fas fa-underline"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn" onclick="formatText('insertOrderedList')">
+                                        <i class="fas fa-list-ol"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn" onclick="formatText('insertUnorderedList')">
+                                        <i class="fas fa-list-ul"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn" onclick="formatText('createLink')">
+                                        <i class="fas fa-link"></i>
+                                    </button>
+                                </div>
+                                <div id="newsContent" class="editor-content" contenteditable="true" placeholder="Xəbərin tam məzmununu buraya yazın..."></div>
+                            </div>
+
+                            <div style="display: flex; gap: 16px; justify-content: flex-end; margin-top: 32px;">
+                                <button type="button" class="btn btn-outline" onclick="resetForm()">
+                                    <i class="fas fa-times"></i> Ləğv Et
+                                </button>
+                                <button type="button" class="btn btn-warning" onclick="saveDraft()">
+                                    <i class="fas fa-save"></i> Qaralama Yadda Saxla
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-check"></i> Dərc Et
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Section -->
+            <div id="categories" class="section">
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h3 class="card-title">Kateqoriyalar</h3>
+                        <button class="btn btn-primary" onclick="openCategoryModal()">
+                            <i class="fas fa-plus"></i> Yeni Kateqoriya
+                        </button>
+                    </div>
+                    <div class="card-content">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Ad</th>
+                                        <th>Təsvir</th>
+                                        <th>Xəbər Sayı</th>
+                                        <th>Yaradılma Tarixi</th>
+                                        <th>Əməliyyatlar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="categoriesTable">
+                                    <tr>
+                                        <td><strong>Akkreditasiya</strong></td>
+                                        <td>Təhsil müəssisəsi akkreditasiya xəbərləri</td>
+                                        <td>3</td>
+                                        <td>01.01.2024</td>
+                                        <td>
+                                            <div class="table-actions">
+                                                <button class="action-btn edit" onclick="editCategory(1)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="action-btn delete" onclick="deleteCategory(1)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Tədqiqat</strong></td>
+                                        <td>Elmi tədqiqat və layihələr</td>
+                                        <td>5</td>
+                                        <td>01.01.2024</td>
+                                        <td>
+                                            <div class="table-actions">
+                                                <button class="action-btn edit" onclick="editCategory(2)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="action-btn delete" onclick="deleteCategory(2)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Media Library Section -->
+            <div id="media" class="section">
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h3 class="card-title">Media Kitabxanası</h3>
+                        <button class="btn btn-primary" onclick="openMediaUpload()">
+                            <i class="fas fa-upload"></i> Fayl Yüklə
+                        </button>
+                    </div>
+                    <div class="card-content">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px;" id="mediaGrid">
+                            <!-- Media items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Section -->
+            <div id="analytics" class="section">
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h3 class="card-title">Xəbər Analitikası</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-header">
+                                    <div class="stat-title">Bu Ay Oxunma</div>
+                                    <div class="stat-icon">
+                                        <i class="fas fa-eye"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-value">12,450</div>
+                                <div class="stat-description">+15% keçən aya nisbətən</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-header">
+                                    <div class="stat-title">Ən Populyar</div>
+                                    <div class="stat-icon">
+                                        <i class="fas fa-fire"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-value">2,340</div>
+                                <div class="stat-description">Beynəlxalq Akkreditasiya</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-header">
+                                    <div class="stat-title">Paylaşım</div>
+                                    <div class="stat-icon">
+                                        <i class="fas fa-share"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-value">890</div>
+                                <div class="stat-description">Sosial mediada paylaşım</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-header">
+                                    <div class="stat-title">Orta Oxunma</div>
+                                    <div class="stat-icon">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-value">3:45</div>
+                                <div class="stat-description">Dəqiqə</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div id="settings" class="section">
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h3 class="card-title">Sistem Tənzimləmələri</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="form-grid">
+                            <div>
+                                <h4 style="margin-bottom: 24px; color: var(--primary);">Ümumi Tənzimləmələr</h4>
+                                <div class="form-group">
+                                    <label for="siteName" class="form-label">Sayt Adı</label>
+                                    <input type="text" id="siteName" class="form-input" value="Təhsil İdarəetmə Sistemi">
+                                </div>
+                                <div class="form-group">
+                                    <label for="siteDescription" class="form-label">Sayt Təsviri</label>
+                                    <textarea id="siteDescription" class="form-textarea">Təhsil İdarəetmə Sistemi - 38 illik təcrübə ilə keyfiyyətli təhsil</textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="contactEmail" class="form-label">Əlaqə E-poçtu</label>
+                                    <input type="email" id="contactEmail" class="form-input" value="info@tehsil.edu.az">
+                                </div>
+                            </div>
+                            <div>
+                                <h4 style="margin-bottom: 24px; color: var(--primary);">Xəbər Tənzimləmələri</h4>
+                                <div class="form-group">
+                                    <label for="newsPerPage" class="form-label">Səhifə başına xəbər sayı</label>
+                                    <select id="newsPerPage" class="form-select">
+                                        <option value="10">10</option>
+                                        <option value="20" selected>20</option>
+                                        <option value="50">50</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <input type="checkbox" checked style="margin-right: 8px;">
+                                        Avtomatik qaralama yadda saxlama
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <input type="checkbox" checked style="margin-right: 8px;">
+                                        E-poçt bildirişləri
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 32px; text-align: right;">
+                            <button class="btn btn-success">
+                                <i class="fas fa-save"></i> Tənzimləmələri Yadda Saxla
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div class="modal-overlay" id="categoryModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Yeni Kateqoriya</h3>
+                <button class="modal-close" onclick="closeCategoryModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="categoryForm">
+                    <div class="form-group">
+                        <label for="categoryName" class="form-label">Kateqoriya Adı *</label>
+                        <input type="text" id="categoryName" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="categoryDescription" class="form-label">Təsvir</label>
+                        <textarea id="categoryDescription" class="form-textarea"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeCategoryModal()">Ləğv Et</button>
+                <button class="btn btn-success" onclick="saveCategory()">Yadda Saxla</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample news data
+        let newsData = [
+            {
+                id: 1,
+                title: "Təhsil İdarəetmə Sistemi Beynəlxalq Akkreditasiya Aldı",
+                excerpt: "Təhsil müəssisəmiz Avropa Təhsil Keyfiyyət Agentliyindən (ENQA) beynəlxalq akkreditasiya sertifikatı aldı.",
+                content: "Təhsil müəssisəmiz Avropa Təhsil Keyfiyyət Agentliyindən (ENQA) beynəlxalq akkreditasiya sertifikatı aldı. Bu nailiyyət təhsil müəssisəmizin beynəlxalq standartlara uyğunluğunu təsdiq edir.",
+                image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                date: "2024-05-20",
+                author: "Rektorluq",
+                category: "Akkreditasiya",
+                status: "published",
+                featured: true
+            },
+            {
+                id: 2,
+                title: "Yeni Tədqiqat Mərkəzi Açıldı",
+                excerpt: "Süni İntellekt və Maşın Öyrənməsi Tədqiqat Mərkəzi rəsmi olaraq fəaliyyətə başladı.",
+                content: "Süni İntellekt və Maşın Öyrənməsi Tədqiqat Mərkəzi rəsmi olaraq fəaliyyətə başladı. Mərkəz ən müasir avadanlıqlarla təchiz edilib.",
+                image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                date: "2024-05-18",
+                author: "Tədqiqat Şöbəsi",
+                category: "Tədqiqat",
+                status: "published",
+                featured: true
+            },
+            {
+                id: 3,
+                title: "Tələbələr Beynəlxalq Olimpiadada Qalib Gəldi",
+                excerpt: "Kompüter Elmləri fakültəsinin tələbələri Beynəlxalq Proqramlaşdırma Olimpiadasında birinci yeri tutdu.",
+                content: "Kompüter Elmləri fakültəsinin tələbələri Beynəlxalq Proqramlaşdırma Olimpiadasında birinci yeri tutdu. Bu böyük nailiyyətdir.",
+                image: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                date: "2024-05-15",
+                author: "Tələbə İşləri",
+                category: "Nailiyyət",
+                status: "published",
+                featured: true
+            },
+            {
+                id: 4,
+                title: "Yeni Akademik İl Qəbul Elanı",
+                excerpt: "2024-2025 akademik ili üçün qəbul prosesi başladı. Müraciətlər iyunun 1-dən qəbul edilir.",
+                content: "2024-2025 akademik ili üçün qəbul prosesi başladı. Müraciətlər iyunun 1-dən qəbul edilir. Ətraflı məlumat üçün qəbul komissiyası ilə əlaqə saxlayın.",
+                image: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                date: "2024-05-10",
+                author: "Qəbul Komissiyası",
+                category: "Qəbul",
+                status: "draft",
+                featured: false
+            }
+        ];
+
+        let categories = [
+            { id: 1, name: "Akkreditasiya", description: "Təhsil müəssisəsi akkreditasiya xəbərləri", newsCount: 3 },
+            { id: 2, name: "Tədqiqat", description: "Elmi tədqiqat və layihələr", newsCount: 5 },
+            { id: 3, name: "Nailiyyət", description: "Təhsil müəssisəsi və tələbə nailiyyətləri", newsCount: 4 },
+            { id: 4, name: "Qəbul", description: "Qəbul prosesi ilə bağlı xəbərlər", newsCount: 2 },
+            { id: 5, name: "Tədbir", description: "Təhsil müəssisəsi tədbirləri", newsCount: 6 },
+            { id: 6, name: "İnfrastruktur", description: "İnfrastruktur yenilikləri", newsCount: 3 }
+        ];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            renderNewsList();
+            updateStats();
+            setCurrentDate();
+        });
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const sectionId = this.getAttribute('data-section');
+                    showSection(sectionId);
+                });
+            });
+
+            // News form
+            document.getElementById('newsForm').addEventListener('submit', handleNewsSubmit);
+            
+            // File upload
+            document.getElementById('newsImage').addEventListener('change', handleImageUpload);
+
+            // Filter
+            document.getElementById('filterStatus').addEventListener('change', filterNews);
+        }
+
+        // Navigation
+        function showSection(sectionId) {
+            // Update active nav link
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+
+            // Update page title
+            const titles = {
+                'dashboard': 'Dashboard',
+                'news-list': 'Xəbərlər',
+                'add-news': 'Yeni Xəbər',
+                'categories': 'Kateqoriyalar',
+                'media': 'Media Kitabxanası',
+                'analytics': 'Analitika',
+                'settings': 'Tənzimləmələr'
+            };
+            document.getElementById('pageTitle').textContent = titles[sectionId] || 'Dashboard';
+
+            // Show section
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        // News Functions
+        function renderNewsList() {
+            const tbody = document.getElementById('newsTable');
+            tbody.innerHTML = '';
+
+            newsData.forEach(news => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <strong>${news.title}</strong>
+                        ${news.featured ? '<i class="fas fa-star text-warning" style="margin-left: 8px;" title="Seçilmiş xəbər"></i>' : ''}
+                    </td>
+                    <td>${news.category}</td>
+                    <td>${news.author}</td>
+                    <td>${formatDate(news.date)}</td>
+                    <td>
+                        <span class="status-badge status-${news.status}">
+                            ${getStatusText(news.status)}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="action-btn view" onclick="viewNews(${news.id})" title="Bax">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="action-btn edit" onclick="editNews(${news.id})" title="Redaktə et">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-btn delete" onclick="deleteNews(${news.id})" title="Sil">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function handleNewsSubmit(e) {
+            e.preventDefault();
+            
+            const formData = {
+                title: document.getElementById('newsTitle').value,
+                category: document.getElementById('newsCategory').value,
+                author: document.getElementById('newsAuthor').value,
+                date: document.getElementById('newsDate').value,
+                status: document.getElementById('newsStatus').value,
+                featured: document.getElementById('newsFeatured').checked,
+                excerpt: document.getElementById('newsExcerpt').value,
+                content: document.getElementById('newsContent').innerHTML
+            };
+
+            // Add to news data
+            const newNews = {
+                id: newsData.length + 1,
+                ...formData,
+                image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+            };
+
+            newsData.unshift(newNews);
+            renderNewsList();
+            updateStats();
+            resetForm();
+            
+            alert('Xəbər uğurla əlavə edildi!');
+            showSection('news-list');
+        }
+
+        function saveDraft() {
+            const formData = {
+                title: document.getElementById('newsTitle').value,
+                category: document.getElementById('newsCategory').value,
+                author: document.getElementById('newsAuthor').value,
+                date: document.getElementById('newsDate').value,
+                status: 'draft',
+                featured: document.getElementById('newsFeatured').checked,
+                excerpt: document.getElementById('newsExcerpt').value,
+                content: document.getElementById('newsContent').innerHTML
+            };
+
+            if (!formData.title) {
+                alert('Ən azı başlıq daxil edin!');
+                return;
+            }
+
+            const newNews = {
+                id: newsData.length + 1,
+                ...formData,
+                image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+            };
+
+            newsData.unshift(newNews);
+            renderNewsList();
+            updateStats();
+            
+            alert('Qaralama yadda saxlanıldı!');
+        }
+
+        function resetForm() {
+            document.getElementById('newsForm').reset();
+            document.getElementById('newsContent').innerHTML = '';
+        }
+
+        function updateStats() {
+            const total = newsData.length;
+            const published = newsData.filter(n => n.status === 'published').length;
+            const draft = newsData.filter(n => n.status === 'draft').length;
+            const archived = newsData.filter(n => n.status === 'archived').length;
+
+            document.getElementById('totalNews').textContent = total;
+            document.getElementById('publishedNews').textContent = published;
+            document.getElementById('draftNews').textContent = draft;
+            document.getElementById('archivedNews').textContent = archived;
+        }
+
+        function setCurrentDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('newsDate').value = today;
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('az-AZ', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        function getStatusText(status) {
+            const statusTexts = {
+                'published': 'Dərc Edilib',
+                'draft': 'Qaralama',
+                'archived': 'Arxivlənib'
+            };
+            return statusTexts[status] || status;
+        }
+
+        function filterNews() {
+            const filter = document.getElementById('filterStatus').value;
+            renderNewsList();
+        }
+
+        function viewNews(id) {
+            const news = newsData.find(n => n.id === id);
+            if (news) {
+                alert(`Başlıq: ${news.title}
+
+Məzmun: ${news.excerpt}
+
+Tarix: ${formatDate(news.date)}
+Müəllif: ${news.author}
+Kateqoriya: ${news.category}`);
+            }
+        }
+
+        function editNews(id) {
+            const news = newsData.find(n => n.id === id);
+            if (news) {
+                document.getElementById('newsTitle').value = news.title;
+                document.getElementById('newsCategory').value = news.category;
+                document.getElementById('newsAuthor').value = news.author;
+                document.getElementById('newsDate').value = news.date;
+                document.getElementById('newsStatus').value = news.status;
+                document.getElementById('newsFeatured').checked = news.featured;
+                document.getElementById('newsExcerpt').value = news.excerpt;
+                document.getElementById('newsContent').innerHTML = news.content;
+                
+                showSection('add-news');
+            }
+        }
+
+        function deleteNews(id) {
+            if (confirm('Bu xəbəri silmək istədiyinizə əminsiniz?')) {
+                newsData = newsData.filter(n => n.id !== id);
+                renderNewsList();
+                updateStats();
+                alert('Xəbər silindi!');
+            }
+        }
+
+        function formatText(command) {
+            document.execCommand(command, false, null);
+            document.getElementById('newsContent').focus();
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    console.log('Şəkil yükləndi:', file.name);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function openCategoryModal() {
+            document.getElementById('categoryModal').style.display = 'flex';
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('categoryModal').style.display = 'none';
+            document.getElementById('categoryForm').reset();
+        }
+
+        function saveCategory() {
+            const name = document.getElementById('categoryName').value;
+            const description = document.getElementById('categoryDescription').value;
+
+            if (!name) {
+                alert('Kateqoriya adı daxil edin!');
+                return;
+            }
+
+            const newCategory = {
+                id: categories.length + 1,
+                name: name,
+                description: description || 'Təsvir yoxdur',
+                newsCount: 0
+            };
+
+            categories.push(newCategory);
+            alert('Kateqoriya əlavə edildi!');
+            closeCategoryModal();
+        }
+
+        function editCategory(id) {
+            alert('Kateqoriya redaktə funksiyası');
+        }
+
+        function deleteCategory(id) {
+            if (confirm('Bu kateqoriyanı silmək istədiyinizə əminsiniz?')) {
+                alert('Kateqoriya silindi!');
+            }
+        }
+
+        function openMediaUpload() {
+            alert('Media yükləmə funksiyası');
+        }
+
+        // Close modals when clicking outside
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal-overlay')) {
+                e.target.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
