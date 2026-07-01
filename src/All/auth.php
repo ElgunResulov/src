@@ -309,5 +309,42 @@ if (!function_exists('app_start_secure_session')) {
         }
         exit;
     }
+
+    function app_operator_allowed_scripts(): array {
+        return [
+            'Qeydiyyatar.php',
+            'Odenisler.php',
+            'Qeydiyyatar_muqavile.php',
+            'Qeydiyyatar_print.php',
+            'schedule.php',
+            'get_schedule.php',
+            'logout.php',
+            'get_students.php',
+            'insert_country.php',
+            'delete_student.php',
+        ];
+    }
+
+    function app_operator_default_permissions(): array {
+        return ['Qeydiyyatar', 'Dərs Cədvəli Telebe'];
+    }
+
+    function app_enforce_operator_page_access(string $defaultRedirect = 'Qeydiyyatar.php'): void {
+        if (($_SESSION['role'] ?? '') !== 'operator') {
+            return;
+        }
+
+        $script = basename($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '');
+        if (in_array($script, app_operator_allowed_scripts(), true)) {
+            return;
+        }
+
+        if (!headers_sent()) {
+            header('Location: ' . $defaultRedirect);
+        } else {
+            echo '<script>window.location.href = ' . json_encode($defaultRedirect) . ';</script>';
+        }
+        exit;
+    }
 }
 ?>

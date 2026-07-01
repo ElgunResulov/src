@@ -46,6 +46,11 @@ $roleConfigs = [
         'icon' => 'fas fa-clipboard-check',
         'users' => [],
     ],
+    'operator' => [
+        'name' => 'Operator',
+        'icon' => 'fas fa-headset',
+        'users' => [],
+    ],
 ];
 
 // Fetch users and organize by role
@@ -1431,6 +1436,10 @@ $conn->close();
                         <div class="role-option">
                             <input type="radio" id="role_examiner" name="role" value="examiner">
                             <label for="role_examiner">İmtahan nəzarətçisi</label>
+                        </div>
+                        <div class="role-option">
+                            <input type="radio" id="role_operator" name="role" value="operator">
+                            <label for="role_operator">Operator</label>
                         </div>
                     </div>
                 </div>

@@ -45,6 +45,8 @@ if ($user_role === 'super_admin' || $user_role === 'admin') {
         'Hesablar', 'Ümumi istifadəçilər', 'Əsas', 'Mövzular', 'Müəllimlər', 'Dərslər', 'Tələbələr',
         'İmtahanlar', 'Dərs Cədvəli', 'Statistika', 'İxtisas üzrə idarəetmə', 'Əməkdaşlar', 'Qeydiyyatar'
     ];
+} elseif ($user_role === 'operator') {
+    $permissions = app_operator_default_permissions();
 } else {
     $query = $conn->prepare("SELECT permissions FROM user_permissions WHERE user_id = ?");
     $query->bind_param("i", $user_id);

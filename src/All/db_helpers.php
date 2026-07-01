@@ -47,6 +47,9 @@ function getDefaultPermissionsForRole($role) {
         ],
         'examiner' => [
             'Əsas', 'İmtahanlar', 'Statistika'
+        ],
+        'operator' => [
+            'Qeydiyyatar', 'Dərs Cədvəli Telebe'
         ]
     ];
     

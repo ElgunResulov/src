@@ -10,7 +10,8 @@
             'teacher' => ['Hesablar', 'Müəllimlər', 'Dərslər', 'Tələbələr'],
             'staff' => ['Əsas', 'Əməkdaşlar', 'Qeydiyyatar'],
             'parent' => ['Tələbələr', 'Dərs Cədvəli'],
-            'examiner' => ['İmtahanlar', 'İmtahan Sualları']
+            'examiner' => ['İmtahanlar', 'İmtahan Sualları'],
+            'operator' => ['Qeydiyyatar', 'Dərs Cədvəli Telebe']
         ];
         return $permissions[$role] ?? [];
     }
@@ -114,7 +115,7 @@
         }
 
         if ($stmt->execute()) {
-            if ($user_role != 'super_admin' && $user_role != 'admin') {
+            if ($user_role != 'super_admin' && $user_role != 'admin' && $user_role != 'operator') {
                 $permissions = isset($_POST['modules']) && !empty($_POST['modules']) ? $_POST['modules'] : getDefaultPermissionsForRole($user_role);
                 $permissions_json = encodePermissions($permissions);
                 $stmt_check_perm = $conn->prepare("SELECT id FROM user_permissions WHERE user_id = ?");
@@ -311,10 +312,12 @@
                     <label for="parent">Valideyn</label>
                     <input type="radio" id="examiner" name="role" value="examiner" <?php echo $user['role'] == 'examiner' ? 'checked' : ''; ?>>
                     <label for="examiner">İmtahan yoxlayıcısı</label>
+                    <input type="radio" id="operator" name="role" value="operator" <?php echo $user['role'] == 'operator' ? 'checked' : ''; ?>>
+                    <label for="operator">Operator</label>
                 </div>
             </div>
             
-            <div id="permissionsBox1" class="form-group" style="display: <?php echo ($user['role'] != 'super_admin' && $user['role'] != 'admin') ? 'block' : 'none'; ?>;">
+            <div id="permissionsBox1" class="form-group" style="display: <?php echo (!in_array($user['role'], ['super_admin', 'admin', 'operator'], true)) ? 'block' : 'none'; ?>;">
                 <label>İcazələr</label>
                 <div class="permissions-group">
                     <?php 
@@ -342,7 +345,7 @@
                 </div>
             </div>
             
-            <div id="permissionsBox2" class="form-group" style="display: <?php echo ($user['role'] != 'super_admin' && $user['role'] != 'admin') ? 'block' : 'none'; ?>;">
+            <div id="permissionsBox2" class="form-group" style="display: <?php echo (!in_array($user['role'], ['super_admin', 'admin', 'operator'], true)) ? 'block' : 'none'; ?>;">
                 <label>Tələbə icazələri</label>
                 <div class="permissions-group">
                     <?php 
@@ -383,7 +386,7 @@
         
         roleRadios.forEach(radio => {
             radio.addEventListener('change', function() {
-                const showPermissions = (this.value !== 'super_admin' && this.value !== 'admin');
+                const showPermissions = !['super_admin', 'admin', 'operator'].includes(this.value);
                 permissionsBox1.style.display = showPermissions ? 'block' : 'none';
                 permissionsBox2.style.display = showPermissions ? 'block' : 'none';
                 const checkboxes = document.querySelectorAll('input[name="modules[]"]');
@@ -397,7 +400,8 @@
                         'teacher': ['Hesablar', 'Müəllimlər', 'Dərslər', 'Tələbələr'],
                         'staff': ['Əsas', 'Əməkdaşlar', 'Qeydiyyatar'],
                         'parent': ['Tələbələr', 'Dərs Cədvəli'],
-                        'examiner': ['İmtahanlar', 'İmtahan Sualları']
+                        'examiner': ['İmtahanlar', 'İmtahan Sualları'],
+                        'operator': ['Qeydiyyatar', 'Dərs Cədvəli Telebe']
                     };
                     
                     if (rolePermissions[this.value]) {
@@ -414,7 +418,7 @@
         window.addEventListener('load', function() {
             const selectedRole = document.querySelector('input[name="role"]:checked');
             if (selectedRole) {
-                const showPermissions = (selectedRole.value !== 'super_admin' && selectedRole.value !== 'admin');
+                const showPermissions = !['super_admin', 'admin', 'operator'].includes(selectedRole.value);
                 permissionsBox1.style.display = showPermissions ? 'block' : 'none';
                 permissionsBox2.style.display = showPermissions ? 'block' : 'none';
             }

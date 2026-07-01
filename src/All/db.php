@@ -21,6 +21,7 @@ app_start_secure_session();
 
 if (!empty($_SESSION['user_id'])) {
     app_validate_current_session($conn);
+    app_enforce_operator_page_access();
     app_csrf_token();
     app_require_csrf();
     app_start_csrf_form_injection();

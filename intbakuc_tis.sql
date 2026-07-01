@@ -593,7 +593,7 @@ CREATE TABLE `users` (
   `id` int(11) NOT NULL,
   `username` varchar(100) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `role` enum('super_admin','admin','staff','teacher','student','examiner','parent') NOT NULL,
+  `role` enum('super_admin','admin','staff','teacher','student','examiner','parent','operator') NOT NULL,
   `company_id` int(11) DEFAULT NULL,
   `u_id` varchar(110) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),

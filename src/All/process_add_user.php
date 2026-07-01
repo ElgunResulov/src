@@ -256,7 +256,7 @@ try {
     }
 
     // Validate role permissions
-    $allowed_roles = ['super_admin', 'admin', 'teacher', 'student', 'staff', 'parent', 'examiner'];
+    $allowed_roles = ['super_admin', 'admin', 'teacher', 'student', 'staff', 'parent', 'examiner', 'operator'];
     if (!in_array($role, $allowed_roles)) {
         showErrorModal('Seçilmiş səlahiyyət etibarsızdır.');
     }
@@ -280,7 +280,7 @@ try {
 
     // Generate u_id for specific roles
     $u_id = null;
-    if (in_array($role, ['super_admin', 'admin', 'parent', 'examiner'])) {
+    if (in_array($role, ['super_admin', 'admin', 'parent', 'examiner', 'operator'])) {
         do {
             $u_id = rand(100000, 999999);
             $check_stmt = $conn->prepare("SELECT id FROM users WHERE u_id = ?");

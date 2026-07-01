@@ -140,7 +140,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                         
                         error_log("LOGIN SUCCESS: User " . $user['username'] . " (u_id: " . $user['u_id'] . ") logged in successfully");
                         
-                        header('Location: ' . $appBasePath . '/Home.php');
+                        $loginRedirect = ($user['role'] === 'operator')
+                            ? $appBasePath . '/Qeydiyyatar.php'
+                            : $appBasePath . '/Home.php';
+                        header('Location: ' . $loginRedirect);
                         exit;
                     }
                 } else {
