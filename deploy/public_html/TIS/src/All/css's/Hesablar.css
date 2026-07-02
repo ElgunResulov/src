@@ -1,0 +1,340 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    min-height: 100vh;
+    background-color: #eee9e4;
+}
+
+
+.main-content {
+    margin-left: 0;
+    padding: 20px;
+    flex: 1;
+    margin-top: 40px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px;
+    justify-content: flex-start;
+    align-content: flex-start;
+    transition: margin-left 0.3s ease;
+}
+
+.main-content .card {
+    height: 200px;
+    width: calc(25% - 22px);
+    min-width: 200px;
+    padding: 5px;
+    border-radius: 20px;
+    background: linear-gradient(15deg, #24425a, #24425a);
+    color: #ffffff;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    animation: cardAppear 0.5s ease forwards;
+}
+
+@keyframes cardAppear {
+    0% {
+        opacity: 0;
+        transform: scale(0.86);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.main-content .card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(225deg, rgba(255,255,255,0.1) 0%, transparent 60%);
+    transition: transform 0.6s ease;
+}
+
+.main-content .card:hover {
+    transform: translateY(-15px) scale(1.02);
+}
+
+.main-content .card:hover::before {
+    transform: rotate(5deg) scale(1.2);
+}
+
+.main-content .card p {
+    margin: 3.54px 14px;
+    font-family: sans-serif;
+    font-size: 14.5px;
+    line-height: 1.9;
+    text-align: left;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.main-content .card .line {
+    height: 2px;
+    width: 40px;
+    background: rgba(255,255,255,0.8);
+    margin: 15px auto;
+    transition: width 0.4s ease;
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(255,255,255,0.5);
+}
+
+.main-content .card button {
+    display: block;
+    margin: 20px auto 10px;
+    padding: 12px 55px;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 15px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.6;
+    backdrop-filter: blur(5px);
+    position: relative;
+    overflow: hidden;
+}
+
+.main-content .card button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+}
+
+.main-content .card button:hover {
+    background: rgba(255,255,255,0.25);
+    transform: translateY(-2px);
+    opacity: 0.8;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.main-content .card button:hover::before {
+    width: 200px;
+    height: 200px;
+    opacity: 0;
+}
+
+
+
+.form-box {
+display: none;
+z-index: 32;
+position: absolute;
+top: 0px;
+left: 0px;
+height: 100%;
+width: 100%;
+background: rgb(238, 235, 232);
+opacity: 0;
+transition: opacity 0.3s ease;
+}
+
+.form-box.show {
+display: block;
+opacity: 1;
+}
+
+.form-box.none {
+display: none;
+opacity: 0;
+}
+
+
+.form-container {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+z-index: 1000;
+padding: 30px;
+background-color: white;
+width: 100%;
+max-width: 550px;
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+border-radius: 10px;
+text-align: center;
+box-sizing: border-box;
+}
+
+.form-container h2 {
+color: #2f2b27;
+font-size: 24px;
+margin-bottom: 20px;
+font-weight: 600;
+}
+
+.form-container label {
+display: block;
+text-align: left;
+color: #5b524a;
+font-size: 14px;
+margin-bottom: 8px;
+font-weight: 500;
+}
+
+.form-container input,
+.form-container select {
+width: 100%;
+padding: 12px;
+margin-bottom: 15px;
+border: 1px solid #d3c6ba;
+border-radius: 8px;
+font-size: 16px;
+box-sizing: border-box;
+transition: border 0.3s ease;
+}
+
+.form-container input:focus,
+.form-container select:focus {
+border-color: #a08474;
+outline: none;
+}
+
+.form-container .role-group {
+text-align: left;
+border: 1px solid #d3c6ba;
+padding: 10px;
+border-radius: 8px;
+background-color: #f8f8f8;
+margin-bottom: 20px;
+}
+
+.form-container .role-group label {
+margin-right: 20px;
+display: inline-block;
+font-weight: 500;
+font-size: 14px;
+}
+
+/* Təsdiq button (Confirm button) */
+.form-container .Təsdiq {
+background-color: #bfa28f;
+color: white;
+padding: 14px 24px;
+border: none;
+border-radius: 8px;
+font-size: 16px;
+cursor: pointer;
+width: 75%; /* Initial width */
+transition: background-color 0.3s ease, transform 0.3s ease, width 0.4s ease; /* Smooth width transition */
+font-weight: 600;
+}
+
+.form-container .Təsdiq:hover {
+transform: scale(1.1);
+background-color: rgba(45, 163, 45, 0.87); /* Darker green on hover */
+width: 70%; /* Slightly expand on hover */
+}
+
+/* Geri button (Back button) */
+.form-container .geri {
+background-color: rgba(228, 20, 20, 0.55); /* Lighter red color */
+color: white;
+padding: 14px 24px;
+border: none;
+border-radius: 8px;
+font-size: 16px;
+cursor: pointer;
+width: 60%; /* Initial width */
+transition: background-color 0.3s ease, transform 0.3s ease, width 0.4s ease; /* Smooth width transition */
+font-weight: 600;
+}
+
+.form-container .geri:hover {
+transform: scale(1.1);
+background-color: rgb(228, 20, 20); /* Darker red on hover */
+width: 55%; /* Slightly expand on hover */
+}
+
+
+
+
+
+
+
+
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .main-content .card {
+        width: calc(33.33% - 22px);
+    }
+}
+
+@media (max-width: 992px) {
+    .main-content .card {
+        width: calc(50% - 22px);
+    }
+}
+
+@media (max-width: 768px) {
+
+
+    .main-content {
+        margin-left: 0;
+    }
+
+    .main-content .card {
+        width: 100%;
+    }
+
+    .add-button {
+        width: 45px;
+    }
+
+    .add-button:hover {
+        width: 45px;
+    }
+
+    .add-button::after {
+        display: none;
+    }
+}
+
+@media (min-width: 769px) {
+
+
+    .main-content {
+        margin-left: 250px;
+    }
+
+}
+
+@media (max-width: 480px) {
+    .form-container {
+        padding: 20px;
+        width: 95%;
+    }
+
+    .form-container h2 {
+        font-size: 20px;
+    }
+
+    .form-container input,
+    .form-container select,
+    .form-container button {
+        font-size: 14px;
+    }
+}

@@ -1,0 +1,258 @@
+/* Material Design Variables */
+:root {
+  --primary-color: #1d6a9d;
+  --primary-light: #2479b1;
+  --primary-dark: #0d5a8d;
+  --accent-color: #ff4081;
+  --text-primary: #212121;
+  --text-secondary: #757575;
+  --divider-color: #BDBDBD;
+  --background: #f5f5f500;
+  --surface: #ffffff00;
+  --error: #B00020;
+  --success: #4CAF50;
+  --card-bg: #24425a;
+  --hover-bg: rgba(104, 67, 199, 0.1);
+  --active-bg: rgba(73, 12, 255, 0.625);
+}
+
+body {
+  margin: 0;
+  font-family: 'Roboto', Arial, sans-serif;
+  color: var(--text-primary);
+  background-color: var(--background);
+  line-height: 1.6;
+}
+
+/* Main Content */
+.main-content {
+  margin-left: 250px;
+  padding: 20px;
+  display: flex;
+  margin-top: 80px;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 40px);
+  transition: margin-left 0.3s ease;
+  background-color: var(--background);
+}
+
+/* Horizontal Navigation Bar (at the top of main-content) */
+.sidebar {
+  width: 100%;
+  border-radius: 12px;
+  background-color: var(--surface);
+  overflow: hidden;
+}
+
+.sidebar-menu {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 10px;
+  height: 45px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sidebar-menu::-webkit-scrollbar {
+  display: none;
+}
+
+.sidebar-menu-item {
+  list-style: none;
+}
+
+.sidebar-menu-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  color: var(--text-secondary);
+  gap: 8px;
+}
+
+.sidebar-menu-link:hover {
+  background-color: var(--hover-bg);
+  color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-menu-link.active {
+  background: #3b5fefd8;
+  color: #ffffff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-menu-text {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.sidebar-menu i {
+  font-size: 18px;
+}
+
+/* Exam System Styles */
+.section {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.section.active {
+  display: block;
+}
+
+/* Cards and Tables */
+.card {
+  background-color: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+  margin-bottom: 20px;
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.attendance-table th,
+.attendance-table td {
+  border: 1px solid var(--divider-color);
+  padding: 12px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.attendance-table th {
+  background-color: var(--primary-color);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.attendance-table td {
+  background-color: var(--surface);
+}
+
+.form-select,
+.form-control {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--divider-color);
+  border-radius: 8px;
+  transition: border-color 0.3s ease;
+}
+
+.form-select:focus,
+.form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 4px rgba(29, 106, 157, 0.3);
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-danger {
+  background-color: var(--error);
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  background-color: darken(var(--error), 10%);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    padding: 15px;
+  }
+
+  .sidebar-menu {
+    height: 40px;
+    gap: 10px;
+    padding: 0 5px;
+  }
+
+  .sidebar-menu-link {
+    padding: 6px 8px;
+  }
+
+  .sidebar-menu-text {
+    font-size: 12px;
+  }
+
+  .sidebar-menu i {
+    font-size: 16px;
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar-menu {
+    height: 35px;
+    gap: 8px;
+  }
+
+  .sidebar-menu-link {
+    padding: 8px 12px;
+    border-radius: 50px;
+  }
+
+  .sidebar-menu-text {
+    font-size: 11px;
+  }
+
+  .sidebar-menu i {
+    font-size: 14px;
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    padding: 6px;
+  }
+}

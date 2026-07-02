@@ -35,8 +35,16 @@ function generateRandomPassword($length = 8) {
     return str_shuffle($password);
 }
 
+function app_add_user_redirect(): string
+{
+    $redirect = basename($_POST['redirect_to'] ?? 'Hesablar.php');
+    $allowed = ['Hesablar.php', 'Ümumi_istifadəçilər.php'];
+
+    return in_array($redirect, $allowed, true) ? $redirect : 'Hesablar.php';
+}
+
 // Function to show success modal
-function showSuccessModal($message, $password) {
+function showSuccessModal($message, $password, $redirectTo = 'Hesablar.php') {
     echo "<!DOCTYPE html>
     <html lang='az'>
     <head>
@@ -152,7 +160,7 @@ function showSuccessModal($message, $password) {
             }
             
             function redirectPage() {
-                window.location.href = 'Hesablar.php';
+                window.location.href = " . json_encode($redirectTo) . ";
             }
             
             setTimeout(redirectPage, 8000);
@@ -163,7 +171,10 @@ function showSuccessModal($message, $password) {
 }
 
 // Function to show error modal
-function showErrorModal($message) {
+function showErrorModal($message, $redirectTo = null) {
+    if ($redirectTo === null) {
+        $redirectTo = app_add_user_redirect();
+    }
     echo "<!DOCTYPE html>
     <html lang='az'>
     <head>
@@ -224,7 +235,7 @@ function showErrorModal($message) {
         </div>
         <script>
             function redirectPage() {
-                window.location.href = 'Hesablar.php';
+                window.location.href = " . json_encode($redirectTo) . ";
             }
             setTimeout(redirectPage, 5000);
         </script>
@@ -232,6 +243,8 @@ function showErrorModal($message) {
     </html>";
     exit();
 }
+
+$redirectTo = app_add_user_redirect();
 
 try {
     // Get and validate form data
@@ -413,7 +426,7 @@ try {
                 $successMessage = "İstifadəçi '{$username}' ({$role}) uğurla yaradıldı!";
         }
 
-        showSuccessModal($successMessage, $password);
+        showSuccessModal($successMessage, $password, $redirectTo);
 
     } catch (Exception $e) {
         $conn->rollback();
