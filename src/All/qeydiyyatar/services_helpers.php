@@ -255,6 +255,109 @@ function xidmet_format_price($value): string
     return number_format($number, 2, '.', ' ') . ' AZN';
 }
 
+function odenis_min_ayliq_mebleg(): float
+{
+    return 130.0;
+}
+
+/**
+ * Ümumi məbləği aylara bölür: hər ay minimum 130 AZN, qalıq son ayda.
+ *
+ * @return float[]
+ */
+function odenis_split_monthly_schedule(float $total, ?float $minMonthly = null): array
+{
+    $total = round(max(0.0, $total), 2);
+    $minMonthly = round(max(0.01, $minMonthly ?? odenis_min_ayliq_mebleg()), 2);
+
+    if ($total <= 0) {
+        return [];
+    }
+
+    $fullMonths = (int) floor($total / $minMonthly);
+    $remainder = round($total - ($fullMonths * $minMonthly), 2);
+    $schedule = array_fill(0, $fullMonths, $minMonthly);
+
+    if ($remainder > 0.009) {
+        $schedule[] = $remainder;
+    } elseif ($fullMonths === 0) {
+        $schedule[] = $total;
+    }
+
+    return $schedule;
+}
+
+function qeydiyyat_normalize_services($services): array
+{
+    if (!is_array($services)) {
+        return [];
+    }
+
+    return array_values(array_filter(array_map('trim', $services)));
+}
+
+function qeydiyyat_has_abituriyent(array $services): bool
+{
+    return in_array('Abituriyent', $services, true);
+}
+
+function qeydiyyat_is_abituriyent_active(mysqli $conn): bool
+{
+    $row = xidmet_get_price($conn, 'Abituriyent');
+    return $row !== null && (int) ($row['aktiv'] ?? 1) === 1;
+}
+
+function qeydiyyat_services_base_total(mysqli $conn, array $services, string $odenisNovu): float
+{
+    $priceKey = $odenisNovu === 'paket' ? 'paket' : 'ayliq';
+    $map = xidmet_get_active_price_map($conn);
+    $total = 0.0;
+
+    foreach ($services as $key) {
+        if (!isset($map[$key])) {
+            continue;
+        }
+        $total += (float) ($map[$key][$priceKey] ?? 0);
+    }
+
+    return round($total, 2);
+}
+
+/**
+ * @return array{
+ *     base: float,
+ *     net: float,
+ *     abituriyent: bool,
+ *     bakalavr_bali: float,
+ *     schedule: float[]
+ * }
+ */
+function qeydiyyat_calc_fee(mysqli $conn, array $services, string $odenisNovu, float $bakalavrBali = 0.0): array
+{
+    $services = qeydiyyat_normalize_services($services);
+    $odenisNovu = in_array($odenisNovu, ['paket', 'ayliq'], true) ? $odenisNovu : 'ayliq';
+    $base = qeydiyyat_services_base_total($conn, $services, $odenisNovu);
+    $abituriyent = qeydiyyat_has_abituriyent($services) && qeydiyyat_is_abituriyent_active($conn);
+
+    $net = $base;
+    if ($abituriyent) {
+        $net = round(max(0.0, $base - max(0.0, $bakalavrBali)), 2);
+    }
+
+    $schedule = [];
+    if ($odenisNovu === 'ayliq' && $net > 0) {
+        $schedule = odenis_split_monthly_schedule($net);
+    }
+
+    return [
+        'base' => $base,
+        'net' => $net,
+        'abituriyent' => $abituriyent,
+        'bakalavr_bali' => max(0.0, $bakalavrBali),
+        'schedule' => $schedule,
+    ];
+}
+
 function xidmet_get_active_price_map(mysqli $conn): array
 {
     $prices = xidmet_get_all_prices($conn);

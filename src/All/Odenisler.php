@@ -112,6 +112,8 @@ $listSql = "
         q.ilkin_odenis,
         q.novbeti_odenis_tarixi,
         q.son_odenis_xatirlatma,
+        q.odenis_plani,
+        q.odenis_odenilen_ay,
         q.baslama_tarixi,
         q.tedris_ili,
         q.ixtisas_adi,
@@ -411,7 +413,8 @@ include('navbar_sidebar.php');
                                 $monthlyAmount = odenis_monthly_amount(
                                     (float) $row['tehsil_haqqi'],
                                     (string) $row['odenis_novu'],
-                                    (float) ($row['endirim_meqdar'] ?? 0)
+                                    (float) ($row['endirim_meqdar'] ?? 0),
+                                    $row
                                 );
                                 $effectiveFee = odenis_row_effective_fee($row);
                                 $dueDate = (string) ($row['novbeti_odenis_tarixi'] ?? '');

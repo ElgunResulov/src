@@ -16,6 +16,8 @@ function odenis_ensure_columns(mysqli $conn): void {
         'novbeti_odenis_tarixi' => "ALTER TABLE qeydiyyatar ADD COLUMN novbeti_odenis_tarixi DATE NULL DEFAULT NULL AFTER ilkin_odenis",
         'son_odenis_xatirlatma' => "ALTER TABLE qeydiyyatar ADD COLUMN son_odenis_xatirlatma DATE NULL DEFAULT NULL AFTER novbeti_odenis_tarixi",
         'endirim_meqdar' => "ALTER TABLE qeydiyyatar ADD COLUMN endirim_meqdar DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER tehsil_haqqi",
+        'odenis_plani' => "ALTER TABLE qeydiyyatar ADD COLUMN odenis_plani TEXT NULL DEFAULT NULL AFTER endirim_meqdar",
+        'odenis_odenilen_ay' => "ALTER TABLE qeydiyyatar ADD COLUMN odenis_odenilen_ay INT UNSIGNED NOT NULL DEFAULT 0 AFTER odenis_plani",
     ];
 
     foreach ($columns as $name => $sql) {
@@ -136,11 +138,66 @@ function odenis_effective_fee(float $tehsilHaqqi, float $endirimMeqdar = 0.0): f
     return max(0.0, $tehsilHaqqi - max(0.0, $endirimMeqdar));
 }
 
-function odenis_monthly_amount(float $tehsilHaqqi, string $odenisNovu, float $endirimMeqdar = 0.0): float {
-    if ($odenisNovu === 'ayliq') {
-        return odenis_effective_fee($tehsilHaqqi, $endirimMeqdar);
+function odenis_plan_from_row(array $row): array {
+    $raw = $row['odenis_plani'] ?? '';
+    if (!is_string($raw) || trim($raw) === '') {
+        return [];
     }
-    return 0.0;
+
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+
+    $plan = [];
+    foreach ($decoded as $amount) {
+        if (is_numeric($amount)) {
+            $plan[] = round((float) $amount, 2);
+        }
+    }
+
+    return $plan;
+}
+
+function odenis_current_monthly_amount(array $row): float {
+    $odenisNovu = (string) ($row['odenis_novu'] ?? 'ayliq');
+    if ($odenisNovu !== 'ayliq') {
+        return 0.0;
+    }
+
+    $plan = odenis_plan_from_row($row);
+    if ($plan !== []) {
+        $index = max(0, (int) ($row['odenis_odenilen_ay'] ?? 0));
+        if (isset($plan[$index])) {
+            return (float) $plan[$index];
+        }
+        return 0.0;
+    }
+
+    require_once __DIR__ . '/services_helpers.php';
+    $net = odenis_effective_fee(
+        (float) ($row['tehsil_haqqi'] ?? 0),
+        (float) ($row['endirim_meqdar'] ?? 0)
+    );
+    $schedule = odenis_split_monthly_schedule($net);
+
+    return (float) ($schedule[0] ?? $net);
+}
+
+function odenis_monthly_amount(float $tehsilHaqqi, string $odenisNovu, float $endirimMeqdar = 0.0, ?array $row = null): float {
+    if ($odenisNovu !== 'ayliq') {
+        return 0.0;
+    }
+
+    if (is_array($row)) {
+        return odenis_current_monthly_amount($row);
+    }
+
+    require_once __DIR__ . '/services_helpers.php';
+    $net = odenis_effective_fee($tehsilHaqqi, $endirimMeqdar);
+    $schedule = odenis_split_monthly_schedule($net);
+
+    return (float) ($schedule[0] ?? $net);
 }
 
 function odenis_row_effective_fee(array $row): float {
@@ -194,7 +251,8 @@ function odenis_mark_received(mysqli $conn, int $qeydiyyatarId): array {
 
     $stmt = mysqli_prepare(
         $conn,
-        "SELECT id, odenis_novu, novbeti_odenis_tarixi FROM qeydiyyatar WHERE id = ? LIMIT 1"
+        "SELECT id, odenis_novu, novbeti_odenis_tarixi, odenis_plani, odenis_odenilen_ay
+         FROM qeydiyyatar WHERE id = ? LIMIT 1"
     );
     if (!$stmt) {
         return ['ok' => false, 'message' => 'Sorğu xətası.'];
@@ -220,17 +278,25 @@ function odenis_mark_received(mysqli $conn, int $qeydiyyatarId): array {
     }
 
     $nextDue = odenis_advance_due_date($currentDue);
-    $today = date('Y-m-d');
+    $plan = odenis_plan_from_row($row);
+    $paidMonths = max(0, (int) ($row['odenis_odenilen_ay'] ?? 0)) + 1;
+    $planComplete = $plan !== [] && $paidMonths >= count($plan);
 
     $update = mysqli_prepare(
         $conn,
-        "UPDATE qeydiyyatar SET novbeti_odenis_tarixi = ?, son_odenis_xatirlatma = NULL WHERE id = ?"
+        $planComplete
+            ? "UPDATE qeydiyyatar SET novbeti_odenis_tarixi = NULL, odenis_odenilen_ay = ?, son_odenis_xatirlatma = NULL WHERE id = ?"
+            : "UPDATE qeydiyyatar SET novbeti_odenis_tarixi = ?, odenis_odenilen_ay = ?, son_odenis_xatirlatma = NULL WHERE id = ?"
     );
     if (!$update) {
         return ['ok' => false, 'message' => 'Yeniləmə xətası.'];
     }
 
-    mysqli_stmt_bind_param($update, 'si', $nextDue, $qeydiyyatarId);
+    if ($planComplete) {
+        mysqli_stmt_bind_param($update, 'ii', $paidMonths, $qeydiyyatarId);
+    } else {
+        mysqli_stmt_bind_param($update, 'sii', $nextDue, $paidMonths, $qeydiyyatarId);
+    }
     $ok = mysqli_stmt_execute($update);
     mysqli_stmt_close($update);
 
@@ -238,10 +304,14 @@ function odenis_mark_received(mysqli $conn, int $qeydiyyatarId): array {
         return ['ok' => false, 'message' => 'Ödəniş qeydə alınmadı.'];
     }
 
+    $message = $planComplete
+        ? 'Ödəniş alındı. Bütün aylıq ödənişlər tamamlandı.'
+        : 'Ödəniş alındı. Növbəti tarix: ' . odenis_format_az_date($nextDue);
+
     return [
         'ok' => true,
-        'message' => 'Ödəniş alındı. Növbəti tarix: ' . odenis_format_az_date($nextDue),
-        'next_due' => $nextDue,
+        'message' => $message,
+        'next_due' => $planComplete ? null : $nextDue,
     ];
 }
 
@@ -318,7 +388,7 @@ function process_payment_reminders(mysqli $conn): array {
 
     $sql = "
         SELECT q.id, q.u_id, q.telebe_ad_soyad, q.tehsil_haqqi, q.endirim_meqdar, q.odenis_novu,
-               q.novbeti_odenis_tarixi, q.son_odenis_xatirlatma,
+               q.novbeti_odenis_tarixi, q.son_odenis_xatirlatma, q.odenis_plani, q.odenis_odenilen_ay,
                COALESCE(NULLIF(q.form_email, ''), t.reg_email, t.poct) AS email,
                t.active_status
         FROM qeydiyyatar q
@@ -355,7 +425,8 @@ function process_payment_reminders(mysqli $conn): array {
         $amount = odenis_monthly_amount(
             (float) $row['tehsil_haqqi'],
             (string) $row['odenis_novu'],
-            (float) ($row['endirim_meqdar'] ?? 0)
+            (float) ($row['endirim_meqdar'] ?? 0),
+            $row
         );
         $dueDate = (string) $row['novbeti_odenis_tarixi'];
 

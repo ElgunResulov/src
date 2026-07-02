@@ -1,7 +1,7 @@
 <?php
 include('db.php');
-require_once __DIR__ . '/qeydiyyatar/odenis_helpers.php';
 require_once __DIR__ . '/qeydiyyatar/services_helpers.php';
+require_once __DIR__ . '/qeydiyyatar/odenis_helpers.php';
 odenis_ensure_columns($conn);
 $xidmet_price_map = xidmet_get_active_price_map($conn);
 use PHPMailer\PHPMailer\PHPMailer;
@@ -299,6 +299,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
             }
         }
 
+        $payableTotal = odenis_effective_fee($tehsil_haqqi, $endirim_meqdar);
+        $odenisPlani = $odenis_novu === 'ayliq'
+            ? odenis_split_monthly_schedule($payableTotal)
+            : [];
+        $odenis_plani_json = $odenisPlani !== [] ? json_encode($odenisPlani, JSON_UNESCAPED_UNICODE) : null;
+
         $ilkin_odenis = 0.0;
         $novbeti_odenis_tarixi = odenis_next_due_date($baslama_tarixi, $odenis_novu);
         $vetandasliq = 'Azərbaycan';
@@ -350,25 +356,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
 
         // qeydiyyatar
         $qeyd_query = "INSERT INTO qeydiyyatar 
-            (u_id, company_id, telebe_ad_soyad, baslama_tarixi, tehsil_haqqi, endirim_meqdar, odenis_novu, ilkin_odenis,
+            (u_id, company_id, telebe_ad_soyad, baslama_tarixi, tehsil_haqqi, endirim_meqdar, odenis_plani, odenis_novu, ilkin_odenis,
              novbeti_odenis_tarixi, tedris_ili, vetandasliq, muellim_adi, ixtisas_adi,
              form_ata_adi, form_universitet, form_ixtisas, form_qebul_ili, form_dogum_tarixi, form_is_nomresi, 
              form_telefon, form_fin_kod, form_email, form_bakalavr_bali, 
              form_magistr_bali, form_bolme, form_tedris, form_vaxt, form_services, 
              form_sinif_qeyd, form_menbe, form_elave_qeyd_1, form_elave_qeyd_2, 
              form_elave_qeyd_3, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
 
         $qeyd_stmt = mysqli_prepare($conn, $qeyd_query);
         mysqli_stmt_bind_param(
             $qeyd_stmt,
-            'sissddsdsssssssssssssssssssssssss',
+            'sissddsssdssssssssssssssssssssssss',
             $u_id,
             $company_id,
             $ad_soyad_db,
             $baslama_tarixi,
             $tehsil_haqqi,
             $endirim_meqdar,
+            $odenis_plani_json,
             $odenis_novu,
             $ilkin_odenis,
             $novbeti_odenis_tarixi,
@@ -565,6 +572,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
     .xidmet-qiymet-xulase li{margin-bottom:4px}
     .xidmet-qiymet-xulase .missing{color:#b45309}
     .xidmet-qiymet-xulase small{display:block;margin-top:8px;color:#64748b;font-size:12px}
+    .odenis-plan-xulase{background:#fefce8;border:1px solid #fde047;border-radius:12px;padding:14px 16px;margin:12px 0 0;font-size:14px;color:#713f12}
+    .odenis-plan-xulase ul{margin:8px 0 0 18px;padding:0}
+    .odenis-plan-xulase li{margin-bottom:4px}
+    .odenis-plan-xulase .last-month{color:#b45309;font-weight:600}
     .form-group select{padding:8px;border:1px solid #bfdbfe;border-radius:10px;font-size:15px;background:#f0f9ff}
     .form-group-double{display:flex;gap:20px}
     .form-group-double .form-group{flex:1}
@@ -730,7 +741,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
                 <div class="form-group"><label>FIN kod:</label><input type="text" name="fin_kod" value="<?= form_val('fin_kod') ?>" maxlength="7" placeholder="XXXXXXX"></div>
                 <div class="form-group"><label>E-mail: *</label><input type="email" name="email" value="<?= form_val('email') ?>" required></div>
                 <div class="form-group-double">
-                    <div class="form-group"><label>Bakalavr balı:</label><input type="text" name="bakalavr_bali" value="<?= form_val('bakalavr_bali') ?>"></div>
+                    <div class="form-group"><label>Bakalavr balı:</label><input type="text" name="bakalavr_bali" id="bakalavr_bali" value="<?= form_val('bakalavr_bali') ?>" inputmode="decimal" placeholder="Abituriyent üçün endirim"></div>
                     <div class="form-group"><label>Magistr balı:</label><input type="text" name="magistr_bali" value="<?= form_val('magistr_bali') ?>"></div>
                 </div>
             </div>
@@ -901,6 +912,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
                     Ödəniləcək məbləğ: <strong id="odenisNetValue">—</strong> AZN
                 </div>
             </div>
+            <div id="odenisPlanXulase" class="odenis-plan-xulase" style="display:none">
+                <strong>Aylıq ödəniş planı</strong>
+                <div id="odenisPlanInfo"></div>
+                <ul id="odenisPlanList"></ul>
+            </div>
             <div class="payment-summary">
                 <span id="ayliqOdenisInfo">Aylıq ödəniş seçildikdə hər ayın sonunda ödəniş xatırlatması e-poçtunuza göndəriləcək.</span>
             </div>
@@ -989,12 +1005,94 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const xidmetPrices = <?= json_encode($xidmet_price_map, JSON_UNESCAPED_UNICODE) ?>;
+    const minAylikOdenis = <?= json_encode(odenis_min_ayliq_mebleg()) ?>;
+    const abituriyentAktiv = <?= json_encode(qeydiyyat_is_abituriyent_active($conn)) ?>;
     const odenisNovu = document.querySelector('select[name="odenis_novu"]');
     const aylikInfo = document.getElementById('ayliqOdenisInfo');
     const xidmetQiymetXulase = document.getElementById('xidmetQiymetXulase');
     const xidmetQiymetList = document.getElementById('xidmetQiymetList');
     const xidmetQiymetCemi = document.getElementById('xidmetQiymetCemi');
     const tehsilHaqqiInput = document.getElementById('tehsil_haqqi');
+    const bakalavrBaliInput = document.getElementById('bakalavr_bali');
+    const odenisPlanXulase = document.getElementById('odenisPlanXulase');
+    const odenisPlanInfo = document.getElementById('odenisPlanInfo');
+    const odenisPlanList = document.getElementById('odenisPlanList');
+
+    function isAbituriyentSelected() {
+        return !!document.querySelector('input[name="services[]"][value="Abituriyent"]:checked');
+    }
+
+    function parseAmount(value) {
+        const normalized = String(value || '').replace(',', '.').trim();
+        const amount = parseFloat(normalized);
+        return Number.isFinite(amount) ? amount : 0;
+    }
+
+    function splitMonthlySchedule(total) {
+        const minMonthly = minAylikOdenis;
+        const amount = Math.max(0, Math.round(total * 100) / 100);
+        if (amount <= 0) {
+            return [];
+        }
+
+        const fullMonths = Math.floor(amount / minMonthly);
+        const remainder = Math.round((amount - (fullMonths * minMonthly)) * 100) / 100;
+        const schedule = [];
+
+        for (let i = 0; i < fullMonths; i++) {
+            schedule.push(minMonthly);
+        }
+        if (remainder > 0.009) {
+            schedule.push(remainder);
+        } else if (!schedule.length) {
+            schedule.push(amount);
+        }
+
+        return schedule;
+    }
+
+    function getPayableTotal() {
+        const tehsil = parseAmount(tehsilHaqqiInput?.value);
+        const endirim = endirimVar && endirimVar.checked ? parseAmount(endirimMeqdar?.value) : 0;
+        if (tehsil <= 0) {
+            return 0;
+        }
+        if (endirim > 0 && endirim < tehsil) {
+            return Math.round((tehsil - endirim) * 100) / 100;
+        }
+        return tehsil;
+    }
+
+    function updateOdenisPlan() {
+        if (!odenisPlanXulase || !odenisPlanList || !odenisPlanInfo) {
+            return;
+        }
+
+        const isAylik = odenisNovu?.value === 'ayliq';
+        const payable = getPayableTotal();
+        const schedule = isAylik ? splitMonthlySchedule(payable) : [];
+
+        if (!isAylik || !schedule.length) {
+            odenisPlanXulase.style.display = 'none';
+            odenisPlanList.innerHTML = '';
+            odenisPlanInfo.textContent = '';
+            return;
+        }
+
+        odenisPlanXulase.style.display = 'block';
+        odenisPlanInfo.innerHTML = 'Ödəniləcək məbləğ <strong>' + payable.toFixed(2) + ' AZN</strong> üzrə '
+            + schedule.length + ' ay, hər ay minimum <strong>' + minAylikOdenis.toFixed(2) + ' AZN</strong>.';
+
+        odenisPlanList.innerHTML = schedule.map(function(amount, index) {
+            const isLast = index === schedule.length - 1;
+            const isRemainder = isLast && amount < minAylikOdenis;
+            const label = isRemainder
+                ? (schedule.length === 1 ? 'Ödəniş' : 'Son ay (qalıq borc)')
+                : ((index + 1) + '. ay');
+            const className = isRemainder ? ' class="last-month"' : '';
+            return '<li' + className + '>' + label + ': <strong>' + amount.toFixed(2) + ' AZN</strong></li>';
+        }).join('');
+    }
 
     function updateOdenisInfo() {
         if (!odenisNovu || !aylikInfo) return;
@@ -1003,7 +1101,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function calculateTehsilHaqqi() {
         const odenisType = odenisNovu?.value === 'paket' ? 'paket' : 'ayliq';
-        let total = 0;
+        let baseTotal = 0;
         const selected = [];
         const missing = [];
 
@@ -1017,15 +1115,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const price = parseFloat(info[odenisType] || 0);
             if (price > 0) {
-                total += price;
+                baseTotal += price;
                 selected.push({ label: info.label || key, price: price });
             } else {
                 missing.push(info.label || key);
             }
         });
 
+        const abituriyentMode = abituriyentAktiv && isAbituriyentSelected();
+        const bakalavrBali = abituriyentMode ? parseAmount(bakalavrBaliInput?.value) : 0;
+        let total = baseTotal;
+        if (abituriyentMode) {
+            total = Math.max(0, Math.round((baseTotal - bakalavrBali) * 100) / 100);
+        }
+
         if (!selected.length && !missing.length) {
             if (xidmetQiymetXulase) xidmetQiymetXulase.style.display = 'none';
+            updateOdenisPlan();
             return;
         }
 
@@ -1034,17 +1140,27 @@ document.addEventListener('DOMContentLoaded', function() {
             let html = selected.map(function(item) {
                 return '<li>' + item.label + ': ' + item.price.toFixed(2) + ' AZN</li>';
             }).join('');
+            if (abituriyentMode) {
+                html += '<li>Ümumi məbləğ: ' + baseTotal.toFixed(2) + ' AZN</li>';
+                html += '<li>Bakalavr balı endirimi: −' + bakalavrBali.toFixed(2) + ' AZN</li>';
+            }
             if (missing.length) {
                 html += '<li class="missing">Qiyməti təyin olunmayıb: ' + missing.join(', ') + '</li>';
             }
             xidmetQiymetList.innerHTML = html;
         }
         if (xidmetQiymetCemi) {
-            xidmetQiymetCemi.innerHTML = '<strong>Cəmi: ' + total.toFixed(2) + ' AZN</strong>';
+            let cemiText = '<strong>Ödəniləcək məbləğ: ' + total.toFixed(2) + ' AZN</strong>';
+            if (abituriyentMode && baseTotal > 0) {
+                cemiText += '<div><small>Formula: ümumi məbləğ − bakalavr balı</small></div>';
+            }
+            xidmetQiymetCemi.innerHTML = cemiText;
         }
         if (total > 0 && tehsilHaqqiInput) {
             tehsilHaqqiInput.value = total.toFixed(2);
             updateNetPrice();
+        } else {
+            updateOdenisPlan();
         }
     }
 
@@ -1052,6 +1168,7 @@ document.addEventListener('DOMContentLoaded', function() {
         odenisNovu.addEventListener('change', function() {
             updateOdenisInfo();
             calculateTehsilHaqqi();
+            updateOdenisPlan();
         });
         updateOdenisInfo();
     }
@@ -1079,8 +1196,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateNetPrice() {
         if (!odenisNetValue || !tehsilHaqqiInput) return;
-        const tehsil = parseFloat(tehsilHaqqiInput.value || '0');
-        const endirim = endirimVar && endirimVar.checked ? parseFloat(endirimMeqdar?.value || '0') : 0;
+        const tehsil = parseAmount(tehsilHaqqiInput.value);
+        const endirim = endirimVar && endirimVar.checked ? parseAmount(endirimMeqdar?.value) : 0;
         if (tehsil > 0 && endirim > 0 && endirim < tehsil) {
             odenisNetValue.textContent = (tehsil - endirim).toFixed(2);
         } else if (tehsil > 0 && (!endirimVar || !endirimVar.checked)) {
@@ -1088,6 +1205,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             odenisNetValue.textContent = '—';
         }
+        updateOdenisPlan();
     }
 
     if (endirimVar) {
@@ -1096,6 +1214,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (endirimMeqdar) endirimMeqdar.addEventListener('input', updateNetPrice);
     if (tehsilHaqqiInput) tehsilHaqqiInput.addEventListener('input', updateNetPrice);
+    if (bakalavrBaliInput) bakalavrBaliInput.addEventListener('input', calculateTehsilHaqqi);
     calculateTehsilHaqqi();
 
     const form = document.querySelector('form[method="POST"]');
