@@ -278,6 +278,78 @@ if (!function_exists('app_start_secure_session')) {
         exit;
     }
 
+    function app_normalize_fin_kod(string $value): string
+    {
+        return strtoupper(preg_replace('/\s+/', '', trim($value)));
+    }
+
+    function app_is_valid_fin_kod(string $value): bool
+    {
+        return (bool) preg_match('/^[A-Z0-9]{7}$/', app_normalize_fin_kod($value));
+    }
+
+    /**
+     * Giriş üçün istifadəçini tapır: username (dəqiq), FIN formatında username, reg_fin_kod.
+     */
+    function app_lookup_login_user(mysqli $conn, string $loginInput): ?array
+    {
+        $loginInput = trim($loginInput);
+        if ($loginInput === '') {
+            return null;
+        }
+
+        $candidates = [$loginInput];
+        $finKod = app_normalize_fin_kod($loginInput);
+        if ($finKod !== '' && !in_array($finKod, $candidates, true)) {
+            $candidates[] = $finKod;
+        }
+
+        foreach ($candidates as $candidate) {
+            $stmt = $conn->prepare(
+                'SELECT id, username, password, role, company_id, u_id
+                 FROM users
+                 WHERE username = ?
+                 LIMIT 1'
+            );
+            if (!$stmt) {
+                continue;
+            }
+
+            $stmt->bind_param('s', $candidate);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $user = $result->fetch_assoc() ?: null;
+            $stmt->close();
+
+            if ($user) {
+                return $user;
+            }
+        }
+
+        if (!app_is_valid_fin_kod($finKod)) {
+            return null;
+        }
+
+        $stmt = $conn->prepare(
+            'SELECT u.id, u.username, u.password, u.role, u.company_id, u.u_id
+             FROM users u
+             INNER JOIN telebeler t ON t.u_id = u.u_id
+             WHERE UPPER(t.reg_fin_kod) = ?
+             LIMIT 1'
+        );
+        if (!$stmt) {
+            return null;
+        }
+
+        $stmt->bind_param('s', $finKod);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user = $result->fetch_assoc() ?: null;
+        $stmt->close();
+
+        return $user;
+    }
+
     function app_base_path(): string {
         static $base = null;
         if ($base !== null) {

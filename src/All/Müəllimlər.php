@@ -196,12 +196,13 @@ include('muellim/statistika.php');
                                     <th>Əlaqə</th>
                                     <th>Status</th>
                                     <th>Təcrübə</th>
+                                    <th class="text-center">QR Kod</th>
                                     <th class="text-center">Əməliyyatlar</th>
                                 </tr>
                             </thead>
                             <tbody id="teachersTableBody">
                                 <tr>
-                                    <td colspan="8" class="text-center">Yüklənir...</td> 
+                                    <td colspan="9" class="text-center">Yüklənir...</td> 
                                 </tr>
                             </tbody>
                         </table>
@@ -365,6 +366,10 @@ include('muellim/statistika.php');
                         <div class="col-md-4 text-center mb-4">
                             <div class="avatar mx-auto mb-3" style="width: 120px; height: 120px;">
                                 <img id="viewTeacherImage" src="../assets/images/users/default-profile.jpg" class="rounded-circle img-fluid">
+                            </div>
+                            <div class="mb-3">
+                                <img id="viewTeacherQr" src="" alt="Müəllim QR kodu" class="img-fluid border rounded" style="max-width: 140px; display: none;">
+                                <p id="viewTeacherQrEmpty" class="text-muted small mb-0" style="display: none;">QR kod hazır deyil</p>
                             </div>
                             <h5 class="mb-1" id="viewTeacherName"></h5>
                             <p hidden class="text-muted" id="viewTeacherSubject"></p>

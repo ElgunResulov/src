@@ -12,6 +12,7 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
 
 // Include database connection
 include('../db.php');
+require_once __DIR__ . '/qr_helpers.php';
 
 // Set header to return JSON response
 header('Content-Type: application/json');
@@ -72,7 +73,7 @@ if ($count_result) {
 }
 
 // Get the data
-$sql = "SELECT id, username, fenn, active_status, email, telefon, tecrube, ise_baslama_tarixi, unvan, tehsil_ve_ixtisas, profile, created_at FROM muellimler_new $where_clause ORDER BY id DESC LIMIT ?, ?";
+$sql = "SELECT id, u_id, username, fenn, active_status, email, telefon, tecrube, ise_baslama_tarixi, unvan, tehsil_ve_ixtisas, profile, qr_code, created_at FROM muellimler_new $where_clause ORDER BY id DESC LIMIT ?, ?";
 $dataTypes = $types . 'ii';
 $dataParams = array_merge($params, [$offset, $limit]);
 $stmt = $conn->prepare($sql);
@@ -83,6 +84,12 @@ $result = $stmt->get_result();
 if ($result) {
     $teachers = [];
     while ($row = mysqli_fetch_assoc($result)) {
+        try {
+            $row = qr_activate_teacher($conn, $row);
+        } catch (Exception $e) {
+            // QR yaradıla bilməsə də siyahıda göstər
+        }
+        $row = array_merge($row, qr_teacher_public_meta($row));
         $teachers[] = $row;
     }
     

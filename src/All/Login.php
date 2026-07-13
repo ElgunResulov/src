@@ -39,21 +39,20 @@ $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $loginFormAction = ($requestPath === '/' || $requestPath === '/index.php') ? '/' : $_SERVER['PHP_SELF'];
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
-    $username = trim($_POST['username']);
+    $rawLogin = trim($_POST['username'] ?? '');
+    $username = app_normalize_fin_kod($rawLogin);
+    if ($username === '' && $rawLogin !== '') {
+        $username = $rawLogin;
+    }
     $password = trim($_POST['password']);
     
-    if (empty($username) || empty($password)) {
-        $login_error = "İstifadəçi adı və şifrə daxil edin.";
+    if (($rawLogin === '' && $username === '') || empty($password)) {
+        $login_error = "FIN kod və şifrə daxil edin.";
     } else {
         try {
-            // Check user by username instead of u_id
-            $stmt = $conn->prepare("SELECT id, username, password, role, company_id, u_id FROM users WHERE username = ?");
-            $stmt->bind_param("s", $username);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            if ($result->num_rows === 1) {
-                $user = $result->fetch_assoc();
+            $user = app_lookup_login_user($conn, $rawLogin);
+
+            if ($user) {
                 
                 if (app_password_matches($password, $user['password'])) {
                     $user_id = $user['id'];
@@ -127,7 +126,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                         
                         // Set cookie for remembering username (not u_id)
                         if (isset($_POST['remember']) && $_POST['remember'] === 'on') {
-                            setcookie("latest_username", $username, [
+                            $rememberLogin = app_is_valid_fin_kod($rawLogin) ? app_normalize_fin_kod($rawLogin) : $rawLogin;
+                            setcookie("latest_username", $rememberLogin, [
                                 'expires' => time() + (30 * 24 * 60 * 60),
                                 'path' => '/',
                                 'secure' => isset($_SERVER['HTTPS']),
@@ -147,12 +147,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                         exit;
                     }
                 } else {
-                    $login_error = "İstifadəçi adı və ya şifrə yanlışdır.";
+                    $login_error = "FIN kod və ya şifrə yanlışdır.";
                 }
             } else {
-                $login_error = "İstifadəçi adı və ya şifrə yanlışdır.";
+                $login_error = "FIN kod və ya şifrə yanlışdır.";
             }
-            $stmt->close();
         } catch (Exception $e) {
             error_log("Login error: " . $e->getMessage());
             $login_error = "Giriş zamanı xəta baş verdi. Yenidən cəhd edin.";
@@ -190,8 +189,10 @@ $conn->close();
                             <?php endif; ?>
                             <form method="POST" action="<?php echo htmlspecialchars($loginFormAction); ?>" class="signin-form">
                                 <div class="form-group mb-3">
-                                    <label class="label">İstifadəçi adı</label>
-                                    <input type="text" name="username" class="form-control" required 
+                                    <label class="label">FIN kod</label>
+                                    <input type="text" name="username" class="form-control" required
+                                           maxlength="100" autocomplete="username"
+                                           placeholder="FIN kod (7 simvol)" style="text-transform: uppercase;"
                                            value="<?php echo htmlspecialchars($latest_username); ?>">
                                 </div>
                                 <div class="form-group mb-3">

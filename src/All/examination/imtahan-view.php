@@ -402,7 +402,7 @@ $results_result = $results_stmt->get_result();
         .bg-success { background-color: #198754; }
         .bg-warning { background-color: #ffc107; }
         .bg-secondary { background-color: #6c757d; }
-        .badge-success { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .badge-success { background: rgba(124, 135, 152, 0.14); color: #7c8798; }
         .badge-danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
     </style>
 </head>

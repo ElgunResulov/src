@@ -116,6 +116,84 @@
         });
 
 
+(function () {
+    var studentStatTitles = {
+        all: 'Bütün Tələbələr',
+        active: 'Aktiv Tələbələr',
+        gender: 'Cins Üzrə Tələbələr',
+        grades: 'Orta Ballar'
+    };
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
+    }
+
+    function openStudentStatModal(type) {
+        var modalEl = document.getElementById('statDetailsModal');
+        if (!modalEl) return;
+
+        document.getElementById('statDetailsTitle').textContent = studentStatTitles[type] || 'Məlumatlar';
+        document.getElementById('statDetailsLoading').classList.remove('d-none');
+        document.getElementById('statDetailsContent').classList.add('d-none');
+        document.getElementById('statDetailsEmpty').classList.add('d-none');
+        document.getElementById('statDetailsHead').innerHTML = '';
+        document.getElementById('statDetailsBody').innerHTML = '';
+
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+        fetch('telebeler/stat_operations.php?type=' + encodeURIComponent(type))
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                document.getElementById('statDetailsLoading').classList.add('d-none');
+                if (data.status !== 'success' || !data.data || !data.data.length) {
+                    document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                    return;
+                }
+                var columns = data.columns;
+                var rows = data.data;
+                document.getElementById('statDetailsContent').classList.remove('d-none');
+
+                var headHtml = '<tr>';
+                columns.forEach(function (column) {
+                    headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+                });
+                headHtml += '</tr>';
+                document.getElementById('statDetailsHead').innerHTML = headHtml;
+
+                var bodyHtml = '';
+                rows.forEach(function (row) {
+                    bodyHtml += '<tr>';
+                    columns.forEach(function (column) {
+                        bodyHtml += '<td>' + escapeHtml(row[column.key] ?? '-') + '</td>';
+                    });
+                    bodyHtml += '</tr>';
+                });
+                document.getElementById('statDetailsBody').innerHTML = bodyHtml;
+            })
+            .catch(function () {
+                document.getElementById('statDetailsLoading').classList.add('d-none');
+                document.getElementById('statDetailsEmpty').classList.remove('d-none');
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.stat-card-clickable').forEach(function (card) {
+            card.addEventListener('click', function () {
+                openStudentStatModal(card.dataset.statType);
+            });
+            card.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openStudentStatModal(card.dataset.statType);
+                }
+            });
+        });
+    });
+})();
+
+
 
 
         let studentToDelete = null;

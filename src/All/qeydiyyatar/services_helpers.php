@@ -261,7 +261,7 @@ function odenis_min_ayliq_mebleg(): float
 }
 
 /**
- * Ümumi məbləği aylara bölür: hər ay minimum 130 AZN, qalıq son ayda.
+ * Ümumi məbləği aylara bölür: əvvəlki aylar 130 AZN, qalıq yalnız son ayda.
  *
  * @return float[]
  */
@@ -274,14 +274,16 @@ function odenis_split_monthly_schedule(float $total, ?float $minMonthly = null):
         return [];
     }
 
+    if ($total < $minMonthly) {
+        return [$total];
+    }
+
     $fullMonths = (int) floor($total / $minMonthly);
     $remainder = round($total - ($fullMonths * $minMonthly), 2);
     $schedule = array_fill(0, $fullMonths, $minMonthly);
 
     if ($remainder > 0.009) {
         $schedule[] = $remainder;
-    } elseif ($fullMonths === 0) {
-        $schedule[] = $total;
     }
 
     return $schedule;
@@ -345,7 +347,7 @@ function qeydiyyat_calc_fee(mysqli $conn, array $services, string $odenisNovu, f
     }
 
     $schedule = [];
-    if ($odenisNovu === 'ayliq' && $net > 0) {
+    if ($net > 0) {
         $schedule = odenis_split_monthly_schedule($net);
     }
 

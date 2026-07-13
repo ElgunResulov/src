@@ -126,7 +126,7 @@ function renderTeachers(response) {
     tableBody.empty();
     
     if (response.data.length === 0) {
-        tableBody.html('<tr><td colspan="8" class="text-center">Heç bir məlumat tapılmadı</td></tr>');
+        tableBody.html('<tr><td colspan="9" class="text-center">Heç bir məlumat tapılmadı</td></tr>');
         return;
     }
     
@@ -150,14 +150,19 @@ function renderTeachers(response) {
                 statusBadge = '<span class="badge badge-secondary">Naməlum</span>';
         }
  
+        const qrCell = teacher.qr_ready && teacher.qr_url
+            ? `<img src="${teacher.qr_url}" alt="QR ${formatTeacherName(teacher.username)}" class="teacher-qr-thumb" title="${teacher.qr_content || ''}" style="width:48px;height:48px;object-fit:contain;">`
+            : '<span class="badge badge-secondary">Yoxdur</span>';
+
         const row = `
             <tr data-id="${teacher.id}">
-                <td>${count}</td> <!-- Display the counter -->
-                <td>${formatTeacherName(teacher.username)}</td> <!-- Teacher's name -->
+                <td>${count}</td>
+                <td>${formatTeacherName(teacher.username)}</td>
                 <td>${teacher.tehsil_ve_ixtisas}</td>
                 <td>${teacher.email}</td>
                 <td>${statusBadge}</td>
                 <td>${teacher.tecrube ? teacher.tecrube + ' il' : '-'}</td>
+                <td class="text-center">${qrCell}</td>
                 <td class="text-center">
                     <div class="actions text-center">
                         <a href="#" class="btn btn-sm btn-info view-teacher mr-1" data-id="${teacher.id}" data-toggle="tooltip" title="Bax">
@@ -513,6 +518,14 @@ $(document).on('click', '.view-teacher', function(e) {
        $('#viewTeacherStartDate').text(teacher.ise_baslama_tarixi || '-');
        $('#viewTeacherAddress').text(teacher.unvan || '-');
        $('#viewTeacherQualifications').text(teacher.tehsil_ve_ixtisas || '-');
+
+       if (teacher.qr_ready && teacher.qr_url) {
+           $('#viewTeacherQr').attr('src', teacher.qr_url).attr('title', teacher.qr_content || '').show();
+           $('#viewTeacherQrEmpty').hide();
+       } else {
+           $('#viewTeacherQr').hide();
+           $('#viewTeacherQrEmpty').show();
+       }
        
        // Store current teacher ID for edit button
        currentTeacherId = teacher.id;

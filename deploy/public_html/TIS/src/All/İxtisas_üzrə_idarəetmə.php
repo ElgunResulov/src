@@ -114,7 +114,7 @@
         <!-- Statistics Cards -->
         <div class="row">
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-primary text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-primary text-white h-100" data-stat-type="specialties" role="button" tabindex="0" aria-label="Ümumi ixtisasları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-graduation-cap fa-lg"></i>
@@ -126,7 +126,7 @@
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-success text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-success text-white h-100" data-stat-type="students" role="button" tabindex="0" aria-label="Tələbələri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-user-graduate fa-lg"></i>
@@ -138,7 +138,7 @@
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-info text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-info text-white h-100" data-stat-type="teachers" role="button" tabindex="0" aria-label="Müəllimləri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-chalkboard-teacher fa-lg"></i>
@@ -150,7 +150,7 @@
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-warning text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-warning text-white h-100" data-stat-type="subjects" role="button" tabindex="0" aria-label="Fənnləri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-book fa-lg"></i>
@@ -266,6 +266,24 @@
         
         // Load specialties on page load
         loadSpecialties();
+
+        const statTitles = {
+            specialties: 'Ümumi İxtisaslar',
+            students: 'Tələbələr',
+            teachers: 'Müəllimlər',
+            subjects: 'Fənnlər'
+        };
+
+        $('.stat-card-clickable').on('click', function () {
+            openStatDetailsModal($(this).data('stat-type'));
+        });
+
+        $('.stat-card-clickable').on('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openStatDetailsModal($(this).data('stat-type'));
+            }
+        });
 
         // Add Specialty Button
         $('#addSpecialtyBtn').on('click', function() {
@@ -629,15 +647,78 @@
                 timeout = setTimeout(later, wait);
             };
         }
+
+        function openStatDetailsModal(type) {
+            $('#statDetailsTitle').text(statTitles[type] || 'Məlumatlar');
+            $('#statDetailsLoading').removeClass('d-none');
+            $('#statDetailsContent').addClass('d-none');
+            $('#statDetailsEmpty').addClass('d-none');
+            $('#statDetailsHead').empty();
+            $('#statDetailsBody').empty();
+
+            const statModalEl = document.getElementById('statDetailsModal');
+            if (statModalEl) {
+                bootstrap.Modal.getOrCreateInstance(statModalEl).show();
+            }
+
+            $.ajax({
+                url: `ixtisas/ixtisas_operations.php?action=stat_details&type=${type}`,
+                type: 'GET',
+                dataType: 'json',
+                success: function (response) {
+                    $('#statDetailsLoading').addClass('d-none');
+
+                    if (response.status === 'success' && response.data && response.data.length > 0) {
+                        renderStatDetailsTable(response.columns, response.data);
+                        $('#statDetailsContent').removeClass('d-none');
+                    } else if (response.status === 'success') {
+                        $('#statDetailsEmpty').removeClass('d-none');
+                    } else {
+                        showAlert('danger', response.message || 'Məlumat tapılmadı');
+                        $('#statDetailsEmpty').removeClass('d-none');
+                    }
+                },
+                error: function (xhr) {
+                    $('#statDetailsLoading').addClass('d-none');
+                    $('#statDetailsEmpty').removeClass('d-none');
+                    showAlert('danger', 'Məlumatları yükləmək mümkün olmadı: ' + xhr.status);
+                }
+            });
+        }
+
+        function renderStatDetailsTable(columns, rows) {
+            const escapeHtml = (value) => String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+
+            let headHtml = '<tr>';
+            columns.forEach(function (column) {
+                headHtml += `<th>${escapeHtml(column.label)}</th>`;
+            });
+            headHtml += '</tr>';
+            $('#statDetailsHead').html(headHtml);
+
+            let bodyHtml = '';
+            rows.forEach(function (row) {
+                bodyHtml += '<tr>';
+                columns.forEach(function (column) {
+                    let value = row[column.key] ?? '-';
+                    if (column.key === 'status_label') {
+                        const badgeClass = value === 'Aktiv' ? 'badge-success' : 'badge-danger';
+                        value = `<span class="badge ${badgeClass}">${escapeHtml(value)}</span>`;
+                    } else {
+                        value = escapeHtml(value);
+                    }
+                    bodyHtml += `<td>${value}</td>`;
+                });
+                bodyHtml += '</tr>';
+            });
+            $('#statDetailsBody').html(bodyHtml);
+        }
     });
     </script>
-    
-    <script src="../assets/libs/jquery/dist/jquery.min.js"></script>
-    <script src="../assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../dist/js/app-style-switcher.js"></script>
-    <script src="../dist/js/feather.min.js"></script>
-    <script src="../assets/libs/perfect-scrollbar/dist/perfect-scrollbar.jquery.min.js"></script>
-    <script src="../dist/js/sidebarmenu.js"></script>
-    <script src="../dist/js/custom.min.js"></script>
 </body>
 </html>

@@ -132,7 +132,7 @@ while ($classRow = mysqli_fetch_assoc($classesQuery)) {
     <div class="container mt-4">
         <div class="row">
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-primary text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-primary text-white h-100" data-stat-type="all" role="button" tabindex="0" aria-label="Bütün tələbələri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-user-graduate fa-lg"></i>
@@ -144,7 +144,7 @@ while ($classRow = mysqli_fetch_assoc($classesQuery)) {
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-success text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-success text-white h-100" data-stat-type="active" role="button" tabindex="0" aria-label="Aktiv tələbələri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-user-check fa-lg"></i>
@@ -156,7 +156,7 @@ while ($classRow = mysqli_fetch_assoc($classesQuery)) {
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-info text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-info text-white h-100" data-stat-type="gender" role="button" tabindex="0" aria-label="Cins üzrə tələbələri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-venus-mars fa-lg"></i>
@@ -168,7 +168,7 @@ while ($classRow = mysqli_fetch_assoc($classesQuery)) {
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-warning text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-warning text-white h-100" data-stat-type="grades" role="button" tabindex="0" aria-label="Orta balları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-chart-line fa-lg"></i>

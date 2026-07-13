@@ -106,6 +106,21 @@
     font-weight: 500;
 }
 
+.stat-card-clickable {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card-clickable:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card-clickable:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.8);
+    outline-offset: 2px;
+}
+
 /* Buttons */
 .btn {
     border-radius: 6px;
@@ -640,5 +655,11 @@
       color: #666;
     }
   }
-  
+
+.badge.badge-success,
+span.badge.badge-success {
+    color: #7c8798 !important;
+    background-color: rgba(124, 135, 152, 0.14) !important;
+}
+
   

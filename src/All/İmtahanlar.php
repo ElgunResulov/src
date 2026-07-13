@@ -24,6 +24,42 @@ if ($result) {
     }
     $result->free();
 }
+
+$totalExams = count($exams);
+$thisMonthExams = 0;
+$completedExams = 0;
+$upcomingExams = 0;
+$upcomingThisWeek = 0;
+$passingScores = [];
+$currentMonth = date('Y-m');
+$currentWeek = date('o-W');
+
+foreach ($exams as $exam) {
+    $createdMonth = !empty($exam['created_at']) ? date('Y-m', strtotime($exam['created_at'])) : '';
+    if ($createdMonth === $currentMonth) {
+        $thisMonthExams++;
+    }
+
+    $status = strtolower((string) ($exam['status'] ?? ''));
+    if ($status === 'completed') {
+        $completedExams++;
+    }
+    if ($status === 'upcoming') {
+        $upcomingExams++;
+        $examWeek = !empty($exam['exam_date']) ? date('o-W', strtotime($exam['exam_date'])) : '';
+        if ($examWeek === $currentWeek) {
+            $upcomingThisWeek++;
+        }
+    }
+    if (isset($exam['passing_score']) && is_numeric($exam['passing_score'])) {
+        $passingScores[] = (float) $exam['passing_score'];
+    }
+}
+
+$averagePassingScore = count($passingScores) > 0
+    ? round(array_sum($passingScores) / count($passingScores), 1)
+    : 0;
+
 $conn->close();
 
 // Function to format JSON fields
@@ -169,50 +205,50 @@ function formatSualSecimi($sual_secimi) {
                 <!-- Statistics Cards -->
                 <div class="row">
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-primary text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-primary text-white h-100" data-stat-type="all" role="button" tabindex="0" aria-label="Ümumi imtahanları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-clipboard-list fa-lg"></i>
                         </div>
                         <h6 class="stat-title">Ümumi İmtahanlar</h6>
-                        <h3 class="stat-number">0</h3>
-                        <p class="mb-0 small">Bu ay: 0</p>
+                        <h3 class="stat-number"><?php echo $totalExams; ?></h3>
+                        <p class="mb-0 small">Bu ay: <?php echo $thisMonthExams; ?></p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-success text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-success text-white h-100" data-stat-type="completed" role="button" tabindex="0" aria-label="Tamamlanmış imtahanları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-check-circle fa-lg"></i>
                         </div>
                         <h6 class="stat-title">Tamamlanmış</h6>
-                        <h3 class="stat-number">0</h3>
-                        <p class="mb-0 small">Keçən aydan: +0</p>
+                        <h3 class="stat-number"><?php echo $completedExams; ?></h3>
+                        <p class="mb-0 small">Cəmi tamamlanmış</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-info text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-info text-white h-100" data-stat-type="average" role="button" tabindex="0" aria-label="Keçid ballarını göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-chart-line fa-lg"></i>
                         </div>
                         <h6 class="stat-title">Orta Bal</h6>
-                        <h3 class="stat-number">0</h3>
-                        <p class="mb-0 small">Keçən ildən: +0</p>
+                        <h3 class="stat-number"><?php echo $averagePassingScore; ?></h3>
+                        <p class="mb-0 small">Keçid balı orta</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-warning text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-warning text-white h-100" data-stat-type="upcoming" role="button" tabindex="0" aria-label="Gələcək imtahanları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-calendar-alt fa-lg"></i>
                         </div>
                         <h6 class="stat-title">Gələcək İmtahanlar</h6>
-                        <h3 class="stat-number">0</h3>
-                        <p class="mb-0 small">Bu həftə: 0</p>
+                        <h3 class="stat-number"><?php echo $upcomingExams; ?></h3>
+                        <p class="mb-0 small">Bu həftə: <?php echo $upcomingThisWeek; ?></p>
                     </div>
                 </div>
             </div>
@@ -428,27 +464,115 @@ function formatSualSecimi($sual_secimi) {
 
 
     <script>
-    $(document).ready(function() {
-        // Placeholder for action button handlers
-        $('.edit-btn').click(function() {
-            const id = $(this).data('id');
-            alert(`Edit exam with ID: ${id}`);
-            // Implement edit logic here (e.g., open modal with pre-filled data)
+    const examStatTitles = {
+        all: 'Ümumi İmtahanlar',
+        completed: 'Tamamlanmış İmtahanlar',
+        average: 'Keçid Balları',
+        upcoming: 'Gələcək İmtahanlar'
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.stat-card-clickable').forEach(function (card) {
+            card.addEventListener('click', function () {
+                openExamStatModal(card.dataset.statType);
+            });
+            card.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openExamStatModal(card.dataset.statType);
+                }
+            });
         });
 
-        $('.copy-btn').click(function() {
-            const id = $(this).data('id');
-            alert(`Copy exam with ID: ${id}`);
-            // Implement copy logic here
-        });
-
-        $('.delete-btn').click(function() {
-            const id = $(this).data('id');
-            alert(`Delete exam with ID: ${id}`);
-            // Implement delete logic here
+        document.querySelectorAll('.edit-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                alert('Edit exam with ID: ' + btn.dataset.id);
+            });
         });
     });
+
+    function openExamStatModal(type) {
+        const modalEl = document.getElementById('statDetailsModal');
+        if (!modalEl) return;
+
+        document.getElementById('statDetailsTitle').textContent = examStatTitles[type] || 'Məlumatlar';
+        document.getElementById('statDetailsLoading').classList.remove('d-none');
+        document.getElementById('statDetailsContent').classList.add('d-none');
+        document.getElementById('statDetailsEmpty').classList.add('d-none');
+        document.getElementById('statDetailsHead').innerHTML = '';
+        document.getElementById('statDetailsBody').innerHTML = '';
+
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+        fetch('İmtahanlar/stat_operations.php?type=' + encodeURIComponent(type))
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                document.getElementById('statDetailsLoading').classList.add('d-none');
+                if (data.status === 'success' && data.data && data.data.length > 0) {
+                    renderExamStatTable(data.columns, data.data);
+                    document.getElementById('statDetailsContent').classList.remove('d-none');
+                } else {
+                    document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                }
+            })
+            .catch(function () {
+                document.getElementById('statDetailsLoading').classList.add('d-none');
+                document.getElementById('statDetailsEmpty').classList.remove('d-none');
+            });
+    }
+
+    function renderExamStatTable(columns, rows) {
+        const escapeHtml = function (value) {
+            return String(value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        };
+
+        let headHtml = '<tr>';
+        columns.forEach(function (column) {
+            headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+        });
+        headHtml += '</tr>';
+        document.getElementById('statDetailsHead').innerHTML = headHtml;
+
+        let bodyHtml = '';
+        rows.forEach(function (row) {
+            bodyHtml += '<tr>';
+            columns.forEach(function (column) {
+                bodyHtml += '<td>' + escapeHtml(row[column.key] ?? '-') + '</td>';
+            });
+            bodyHtml += '</tr>';
+        });
+        document.getElementById('statDetailsBody').innerHTML = bodyHtml;
+    }
     </script>
+
+    <!-- Stat Details Modal -->
+    <div class="modal fade" id="statDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statDetailsLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <div class="table-responsive d-none" id="statDetailsContent">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="thead-light" id="statDetailsHead"></thead>
+                            <tbody id="statDetailsBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">Məlumat tapılmadı</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 
     <script src="../assets/libs/jquery/dist/jquery.min.js"></script>

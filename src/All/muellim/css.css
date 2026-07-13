@@ -118,8 +118,8 @@
 }
 
 .badge-success {
-    background-color: #4CAF50;
-    color: white;
+    background-color: rgba(124, 135, 152, 0.14);
+    color: #7c8798;
 }
 
 .badge-warning {

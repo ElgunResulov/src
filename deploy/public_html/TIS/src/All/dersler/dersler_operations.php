@@ -55,6 +55,9 @@ switch ($action) {
         // Get calendar data
         getCalendarData();
         break;
+    case 'stat_details':
+        getStatDetails();
+        break;
     default:
         // Handle invalid action
         if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -528,6 +531,113 @@ function getCalendarData() {
     } else {
         echo json_encode(['error' => 'İl və ya ay parametri təqdim edilməyib']);
     }
+}
+
+function getStatDetails() {
+    global $conn;
+
+    header('Content-Type: application/json; charset=utf-8');
+
+    $type = trim((string) ($_GET['type'] ?? ''));
+    $columns = [];
+    $query = '';
+
+    switch ($type) {
+        case 'lessons':
+            $query = "SELECT id, fenn, sinif, muellim, tarix,
+                             CONCAT(DATE_FORMAT(start_time, '%H:%i'), ' - ', DATE_FORMAT(end_time, '%H:%i')) AS vaxt,
+                             otaq, status
+                      FROM dersler
+                      WHERE active_status = 1
+                      ORDER BY tarix DESC, start_time ASC";
+            $columns = [
+                ['key' => 'id', 'label' => 'ID'],
+                ['key' => 'fenn', 'label' => 'Fənn'],
+                ['key' => 'sinif', 'label' => 'Sinif'],
+                ['key' => 'muellim', 'label' => 'Müəllim'],
+                ['key' => 'tarix', 'label' => 'Tarix'],
+                ['key' => 'vaxt', 'label' => 'Vaxt'],
+                ['key' => 'otaq', 'label' => 'Otaq'],
+                ['key' => 'status', 'label' => 'Status'],
+            ];
+            break;
+
+        case 'teachers':
+            $query = "SELECT d.muellim AS muellim_adi,
+                             COUNT(*) AS ders_sayi,
+                             COUNT(DISTINCT d.sinif) AS sinif_sayi
+                      FROM dersler d
+                      WHERE d.active_status = 1 AND d.muellim IS NOT NULL AND d.muellim != ''
+                      GROUP BY d.muellim
+                      ORDER BY d.muellim ASC";
+            $columns = [
+                ['key' => 'muellim_adi', 'label' => 'Müəllim'],
+                ['key' => 'ders_sayi', 'label' => 'Dərs sayı'],
+                ['key' => 'sinif_sayi', 'label' => 'Sinif sayı'],
+            ];
+            break;
+
+        case 'classes':
+            $query = "SELECT sinif,
+                             COUNT(*) AS ders_sayi,
+                             ROUND(AVG(sagird_sayi)) AS orta_sagird
+                      FROM dersler
+                      WHERE active_status = 1 AND sinif IS NOT NULL AND sinif != ''
+                      GROUP BY sinif
+                      ORDER BY sinif ASC";
+            $columns = [
+                ['key' => 'sinif', 'label' => 'Sinif'],
+                ['key' => 'ders_sayi', 'label' => 'Dərs sayı'],
+                ['key' => 'orta_sagird', 'label' => 'Orta şagird'],
+            ];
+            break;
+
+        case 'today':
+            $query = "SELECT id, fenn, sinif, muellim,
+                             CONCAT(DATE_FORMAT(start_time, '%H:%i'), ' - ', DATE_FORMAT(end_time, '%H:%i')) AS vaxt,
+                             otaq, status
+                      FROM dersler
+                      WHERE active_status = 1 AND tarix = CURDATE()
+                      ORDER BY start_time ASC";
+            $columns = [
+                ['key' => 'id', 'label' => 'ID'],
+                ['key' => 'fenn', 'label' => 'Fənn'],
+                ['key' => 'sinif', 'label' => 'Sinif'],
+                ['key' => 'muellim', 'label' => 'Müəllim'],
+                ['key' => 'vaxt', 'label' => 'Vaxt'],
+                ['key' => 'otaq', 'label' => 'Otaq'],
+                ['key' => 'status', 'label' => 'Status'],
+            ];
+            break;
+
+        default:
+            echo json_encode(['status' => 'error', 'message' => 'Yanlış statistik tipi.']);
+            return;
+    }
+
+    $rows = [];
+    $result = mysqli_query($conn, $query);
+
+    if (!$result) {
+        echo json_encode(['status' => 'error', 'message' => 'Məlumat bazası xətası: ' . mysqli_error($conn)]);
+        return;
+    }
+
+    while ($row = mysqli_fetch_assoc($result)) {
+        foreach ($row as $key => $value) {
+            if ($value === null || $value === '') {
+                $row[$key] = '-';
+            }
+        }
+        $rows[] = $row;
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'type' => $type,
+        'columns' => $columns,
+        'data' => $rows,
+    ]);
 }
 
 // Close the database connection

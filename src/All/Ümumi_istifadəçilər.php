@@ -136,6 +136,16 @@ $conn->close();
             transform: translateY(-3px);
         }
 
+        .stat-card-clickable {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card-clickable:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
         .stat-card .stat-number {
             font-size: 1.75rem;
             font-weight: 700;
@@ -336,6 +346,38 @@ $conn->close();
             margin-bottom: 16px;
         }
 
+        .password-mode-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .password-mode-row label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border: 1px solid #dbe3ec;
+            border-radius: 8px;
+            margin: 0;
+            cursor: pointer;
+            flex: 1 1 180px;
+        }
+
+        .password-mode-row label:has(input:checked) {
+            border-color: var(--primary-color);
+            background: rgba(29, 106, 157, 0.06);
+        }
+
+        #manualPasswordWrap {
+            display: none;
+        }
+
+        #manualPasswordWrap.is-visible {
+            display: block;
+        }
+
         @media (min-width: 769px) {
             .main-content {
                 margin-left: 250px;
@@ -373,13 +415,31 @@ $conn->close();
         <div class="role-panel-body">
             <div class="password-hint">
                 <i class="fas fa-key mr-1"></i>
-                Şifrə avtomatik yaradılacaq və uğurlu əməliyyatdan sonra göstəriləcək.
+                Şifrəni avtomatik yarada və ya özünüz təyin edə bilərsiniz.
+                <a href="Parol_idareetme.php" class="ml-2">Parol İdarəetməsi →</a>
             </div>
             <form method="POST" action="process_add_user.php" id="addUserRoleForm">
                 <input type="hidden" name="redirect_to" value="Ümumi_istifadəçilər.php">
                 <div class="form-group">
                     <label for="newUsername">İstifadəçi adı</label>
                     <input type="text" class="form-control" id="newUsername" name="username" required placeholder="Yeni istifadəçi adı daxil edin">
+                </div>
+                <div class="form-group">
+                    <label>Şifrə seçimi</label>
+                    <div class="password-mode-row">
+                        <label>
+                            <input type="radio" name="password_mode" value="auto" checked>
+                            Avtomatik şifrə
+                        </label>
+                        <label>
+                            <input type="radio" name="password_mode" value="manual">
+                            Öz şifrəmi yazım
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group" id="manualPasswordWrap">
+                    <label for="newPassword">Şifrə (ən azı 6 simvol)</label>
+                    <input type="text" class="form-control" id="newPassword" name="password" minlength="6" autocomplete="new-password" placeholder="Şifrənizi daxil edin">
                 </div>
                 <div class="form-group mb-0">
                     <label>Rol seçin</label>
@@ -423,7 +483,7 @@ $conn->close();
 
     <div class="row">
         <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card stat-card bg-primary text-white h-100">
+            <div class="card stat-card stat-card-clickable bg-primary text-white h-100" data-stat-type="all" role="button" tabindex="0" aria-label="Bütün istifadəçiləri göstər">
                 <div class="card-body">
                     <p class="stat-title">Ümumi say</p>
                     <h3 class="stat-number"><?= $totalUsers ?></h3>
@@ -431,7 +491,7 @@ $conn->close();
             </div>
         </div>
         <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card stat-card bg-success text-white h-100">
+            <div class="card stat-card stat-card-clickable bg-success text-white h-100" data-stat-type="teachers" role="button" tabindex="0" aria-label="Müəllimləri göstər">
                 <div class="card-body">
                     <p class="stat-title">Müəllimlər</p>
                     <h3 class="stat-number"><?= $roleCounts['teacher'] ?></h3>
@@ -439,7 +499,7 @@ $conn->close();
             </div>
         </div>
         <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card stat-card bg-info text-white h-100">
+            <div class="card stat-card stat-card-clickable bg-info text-white h-100" data-stat-type="students" role="button" tabindex="0" aria-label="Tələbələri göstər">
                 <div class="card-body">
                     <p class="stat-title">Tələbələr</p>
                     <h3 class="stat-number"><?= $roleCounts['student'] ?></h3>
@@ -447,7 +507,7 @@ $conn->close();
             </div>
         </div>
         <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card stat-card bg-warning text-white h-100">
+            <div class="card stat-card stat-card-clickable bg-warning text-white h-100" data-stat-type="others" role="button" tabindex="0" aria-label="Digər rolları göstər">
                 <div class="card-body">
                     <p class="stat-title">Digər rollar</p>
                     <h3 class="stat-number"><?= $totalUsers - $roleCounts['teacher'] - $roleCounts['student'] ?></h3>
@@ -574,6 +634,32 @@ $conn->close();
     <?php endif; ?>
 </div>
 
+<div class="modal fade" id="statDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+            </div>
+            <div class="modal-body">
+                <div id="statDetailsLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+                <div class="table-responsive d-none" id="statDetailsContent">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="thead-light" id="statDetailsHead"></thead>
+                        <tbody id="statDetailsBody"></tbody>
+                    </table>
+                </div>
+                <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">Məlumat tapılmadı</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="../assets/libs/jquery/dist/jquery.min.js"></script>
 <script src="../assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../dist/js/app-style-switcher.js"></script>
@@ -585,6 +671,29 @@ $conn->close();
 $(function () {
     $('#rolePanelToggle').on('click', function () {
         $('#rolePanel').toggleClass('open');
+    });
+
+    function syncPasswordMode() {
+        var isManual = $('input[name="password_mode"]:checked').val() === 'manual';
+        $('#manualPasswordWrap').toggleClass('is-visible', isManual);
+        $('#newPassword').prop('required', isManual);
+        if (!isManual) {
+            $('#newPassword').val('');
+        }
+    }
+
+    $('input[name="password_mode"]').on('change', syncPasswordMode);
+    syncPasswordMode();
+
+    $('#addUserRoleForm').on('submit', function (event) {
+        if ($('input[name="password_mode"]:checked').val() === 'manual') {
+            var password = ($('#newPassword').val() || '').trim();
+            if (password.length < 6) {
+                event.preventDefault();
+                alert('Şifrə ən azı 6 simvol olmalıdır.');
+                $('#newPassword').focus();
+            }
+        }
     });
 
     function filterUsers() {
@@ -662,6 +771,82 @@ $(function () {
         });
     });
 });
+
+(function () {
+    var userStatTitles = {
+        all: 'Bütün İstifadəçilər',
+        teachers: 'Müəllimlər',
+        students: 'Tələbələr',
+        others: 'Digər Rollar'
+    };
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
+    }
+
+    function openUserStatModal(type) {
+        var modalEl = document.getElementById('statDetailsModal');
+        if (!modalEl) return;
+
+        document.getElementById('statDetailsTitle').textContent = userStatTitles[type] || 'Məlumatlar';
+        document.getElementById('statDetailsLoading').classList.remove('d-none');
+        document.getElementById('statDetailsContent').classList.add('d-none');
+        document.getElementById('statDetailsEmpty').classList.add('d-none');
+        document.getElementById('statDetailsHead').innerHTML = '';
+        document.getElementById('statDetailsBody').innerHTML = '';
+
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+        fetch('umumi_istifadeciler/stat_operations.php?type=' + encodeURIComponent(type))
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                document.getElementById('statDetailsLoading').classList.add('d-none');
+                if (data.status !== 'success' || !data.data || !data.data.length) {
+                    document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                    return;
+                }
+                renderStatTable(data.columns, data.data);
+            })
+            .catch(function () {
+                document.getElementById('statDetailsLoading').classList.add('d-none');
+                document.getElementById('statDetailsEmpty').classList.remove('d-none');
+            });
+    }
+
+    function renderStatTable(columns, rows) {
+        document.getElementById('statDetailsContent').classList.remove('d-none');
+        var headHtml = '<tr>';
+        columns.forEach(function (column) {
+            headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+        });
+        headHtml += '</tr>';
+        document.getElementById('statDetailsHead').innerHTML = headHtml;
+
+        var bodyHtml = '';
+        rows.forEach(function (row) {
+            bodyHtml += '<tr>';
+            columns.forEach(function (column) {
+                bodyHtml += '<td>' + escapeHtml(row[column.key] ?? '-') + '</td>';
+            });
+            bodyHtml += '</tr>';
+        });
+        document.getElementById('statDetailsBody').innerHTML = bodyHtml;
+    }
+
+    document.querySelectorAll('.stat-card-clickable').forEach(function (card) {
+        card.addEventListener('click', function () {
+            openUserStatModal(card.dataset.statType);
+        });
+        card.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openUserStatModal(card.dataset.statType);
+            }
+        });
+    });
+})();
 </script>
 </body>
 </html>

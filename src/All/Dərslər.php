@@ -189,6 +189,21 @@
             margin-bottom: 0.5rem;
         }
 
+        .stat-card-clickable {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card-clickable:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card-clickable:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.8);
+            outline-offset: 2px;
+        }
+
         /* Table Styles */
         .table {
             border-collapse: separate;
@@ -223,8 +238,8 @@
         }
 
         .badge-success {
-            background-color: var(--success);
-            color: white;
+            background-color: rgba(124, 135, 152, 0.14);
+            color: #7c8798;
         }
 
         .badge-warning {
@@ -662,7 +677,7 @@
         <!-- Statistics Cards -->
         <div class="row">
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-primary text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-primary text-white h-100" data-stat-type="lessons" role="button" tabindex="0" aria-label="Ümumi dərsləri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-book fa-lg"></i>
@@ -674,7 +689,7 @@
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-success text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-success text-white h-100" data-stat-type="teachers" role="button" tabindex="0" aria-label="Aktiv müəllimləri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-chalkboard-teacher fa-lg"></i>
@@ -686,7 +701,7 @@
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-info text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-info text-white h-100" data-stat-type="classes" role="button" tabindex="0" aria-label="Sinifləri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-users fa-lg"></i>
@@ -698,7 +713,7 @@
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card stat-card bg-warning text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-warning text-white h-100" data-stat-type="today" role="button" tabindex="0" aria-label="Bu günün dərslərini göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-clock fa-lg"></i>
@@ -917,6 +932,13 @@
     <?php include('dersler/dersler_modals.php'); ?>
 
     <script>
+const statTitles = {
+    lessons: 'Ümumi Dərslər',
+    teachers: 'Aktiv Müəllimlər',
+    classes: 'Siniflər',
+    today: 'Bu Günün Dərsləri'
+};
+
    document.addEventListener("DOMContentLoaded", () => {
     // Hide preloader when the page is fully loaded
     const preloader = document.querySelector(".preloader");
@@ -935,6 +957,18 @@
 });
 
 function initializeEventListeners() {
+    document.querySelectorAll('.stat-card-clickable').forEach((card) => {
+        card.addEventListener('click', () => {
+            openStatDetailsModal(card.dataset.statType);
+        });
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openStatDetailsModal(card.dataset.statType);
+            }
+        });
+    });
+
     // Create Lesson button
     const createLessonBtn = document.querySelector(".create-lesson");
     if (createLessonBtn) {
@@ -1644,6 +1678,82 @@ function mapRoomToId(roomName) {
         }
     }
     return "";
+}
+
+function openStatDetailsModal(type) {
+    const titleEl = document.getElementById('statDetailsTitle');
+    const loadingEl = document.getElementById('statDetailsLoading');
+    const contentEl = document.getElementById('statDetailsContent');
+    const emptyEl = document.getElementById('statDetailsEmpty');
+    const headEl = document.getElementById('statDetailsHead');
+    const bodyEl = document.getElementById('statDetailsBody');
+    const modalEl = document.getElementById('statDetailsModal');
+
+    if (!modalEl) {
+        return;
+    }
+
+    if (titleEl) titleEl.textContent = statTitles[type] || 'Məlumatlar';
+    if (loadingEl) loadingEl.classList.remove('d-none');
+    if (contentEl) contentEl.classList.add('d-none');
+    if (emptyEl) emptyEl.classList.add('d-none');
+    if (headEl) headEl.innerHTML = '';
+    if (bodyEl) bodyEl.innerHTML = '';
+
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+    fetch('dersler/dersler_operations.php?action=stat_details&type=' + encodeURIComponent(type))
+        .then((response) => response.json())
+        .then((data) => {
+            if (loadingEl) loadingEl.classList.add('d-none');
+
+            if (data.status === 'success' && data.data && data.data.length > 0) {
+                renderStatDetailsTable(data.columns, data.data);
+                if (contentEl) contentEl.classList.remove('d-none');
+            } else if (data.status === 'success') {
+                if (emptyEl) emptyEl.classList.remove('d-none');
+            } else {
+                alert(data.message || 'Məlumat tapılmadı');
+                if (emptyEl) emptyEl.classList.remove('d-none');
+            }
+        })
+        .catch(() => {
+            if (loadingEl) loadingEl.classList.add('d-none');
+            if (emptyEl) emptyEl.classList.remove('d-none');
+            alert('Məlumatları yükləmək mümkün olmadı');
+        });
+}
+
+function renderStatDetailsTable(columns, rows) {
+    const escapeHtml = (value) => String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    const headEl = document.getElementById('statDetailsHead');
+    const bodyEl = document.getElementById('statDetailsBody');
+    if (!headEl || !bodyEl) {
+        return;
+    }
+
+    let headHtml = '<tr>';
+    columns.forEach((column) => {
+        headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+    });
+    headHtml += '</tr>';
+    headEl.innerHTML = headHtml;
+
+    let bodyHtml = '';
+    rows.forEach((row) => {
+        bodyHtml += '<tr>';
+        columns.forEach((column) => {
+            bodyHtml += '<td>' + escapeHtml(row[column.key] ?? '-') + '</td>';
+        });
+        bodyHtml += '</tr>';
+    });
+    bodyEl.innerHTML = bodyHtml;
 }
     </script>
 

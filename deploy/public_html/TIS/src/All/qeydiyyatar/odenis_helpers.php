@@ -11,6 +11,10 @@ function odenis_default_tedris_ili(): string {
     return ($year - 1) . '-' . $year;
 }
 
+function odenis_ilkin_mebleg(): float {
+    return 45.0;
+}
+
 function odenis_ensure_columns(mysqli $conn): void {
     $columns = [
         'novbeti_odenis_tarixi' => "ALTER TABLE qeydiyyatar ADD COLUMN novbeti_odenis_tarixi DATE NULL DEFAULT NULL AFTER ilkin_odenis",

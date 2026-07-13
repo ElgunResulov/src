@@ -1,5 +1,7 @@
 <?php
     include('db.php');
+    require_once __DIR__ . '/user_credentials_helper.php';
+    app_ensure_plain_password_column($conn);
     app_start_secure_session();
     app_require_auth($conn);
     app_require_role(['super_admin', 'admin'], 'index.php');
@@ -105,9 +107,9 @@
         
         if (!empty($user_password)) {
             $user_password_hash = app_hash_password($user_password);
-            $update_sql = "UPDATE users SET username = ?, password = ?, role = ?, company_id = ? WHERE id = ?";
+            $update_sql = "UPDATE users SET username = ?, password = ?, plain_password = ?, role = ?, company_id = ? WHERE id = ?";
             $stmt = $conn->prepare($update_sql);
-            $stmt->bind_param("sssii", $user_name, $user_password_hash, $user_role, $company_id, $user_id);
+            $stmt->bind_param("ssssii", $user_name, $user_password_hash, $user_password, $user_role, $company_id, $user_id);
         } else {
             $update_sql = "UPDATE users SET username = ?, role = ?, company_id = ? WHERE id = ?";
             $stmt = $conn->prepare($update_sql);

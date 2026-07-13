@@ -1,5 +1,7 @@
 <?php
 include('db.php');
+require_once __DIR__ . '/user_credentials_helper.php';
+app_ensure_plain_password_column($conn);
 require_once __DIR__ . '/qeydiyyatar/odenis_helpers.php';
 odenis_ensure_columns($conn);
 
@@ -293,8 +295,9 @@ if ($monthly_stats_result) {
         $month_name = date('F', mktime(0, 0, 0, $row['month'], 10));
         $monthly_stats[] = [
             'month' => $month_name,
-            'year' => $row['year'],
-            'count' => $row['count']
+            'month_num' => (int) $row['month'],
+            'year' => (int) $row['year'],
+            'count' => (int) $row['count'],
         ];
     }
 }
@@ -513,15 +516,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $password_hash = app_hash_password($password);
             $role = 'student';
             $created_at = date('Y-m-d H:i:s');
-            $user_query = "INSERT INTO users (username, u_id, password, role, created_at) VALUES (?, ?, ?, ?, ?)";
+            $user_query = "INSERT INTO users (username, u_id, password, plain_password, role, created_at) VALUES (?, ?, ?, ?, ?, ?)";
             $user_stmt = mysqli_prepare($conn, $user_query);
             if ($user_stmt) {
                 mysqli_stmt_bind_param(
                     $user_stmt,
-                    'sssss',
+                    'ssssss',
                     $telebe_ad_soyad,
                     $u_id,
                     $password_hash,
+                    $password,
                     $role,
                     $created_at
                 );
@@ -908,6 +912,16 @@ if ($result) {
             padding: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             text-align: center;
+        }
+
+        .monthly-stats-item-clickable {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .monthly-stats-item-clickable:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
         }
 
         .monthly-stats-month {
@@ -1596,10 +1610,16 @@ if ($result) {
                     <div class="monthly-stats mb-4">
                         <div class="monthly-stats-grid">
                             <?php foreach ($monthly_stats as $stat): ?>
-                            <div class="monthly-stats-item">
+                            <div class="monthly-stats-item monthly-stats-item-clickable"
+                                 data-stat-type="month"
+                                 data-year="<?= (int) $stat['year'] ?>"
+                                 data-month="<?= (int) $stat['month_num'] ?>"
+                                 role="button"
+                                 tabindex="0"
+                                 aria-label="<?= htmlspecialchars(getAzMonthName((int) $stat['month_num']) . ' qeydiyyatları', ENT_QUOTES, 'UTF-8') ?>">
                                 <p style="margin-bottom:-26px; text-align:left;">
-                                    <?php echo getAzMonthName((int)date('m', strtotime($stat['month'] . ' 1'))); ?> Qeydiyyatar
-                                </p>    
+                                    <?php echo getAzMonthName((int) $stat['month_num']); ?> Qeydiyyatar
+                                </p>
                                 <div style="text-align:right;" class="monthly-stats-count"><?php echo $stat['count']; ?> <sup style="font-weight:900;"></sup></div>
                             </div>
                             <?php endforeach; ?>
@@ -2315,6 +2335,112 @@ if ($result) {
                 });
             });
         });
+    </script>
+
+    <div class="modal fade" id="statDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statDetailsLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <div class="table-responsive d-none" id="statDetailsContent">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="thead-light" id="statDetailsHead"></thead>
+                            <tbody id="statDetailsBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">Məlumat tapılmadı</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var azMonths = {
+            1: 'Yanvar', 2: 'Fevral', 3: 'Mart', 4: 'Aprel',
+            5: 'May', 6: 'İyun', 7: 'İyul', 8: 'Avqust',
+            9: 'Sentyabr', 10: 'Oktyabr', 11: 'Noyabr', 12: 'Dekabr'
+        };
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function openMonthlyStatModal(item) {
+            var year = item.dataset.year;
+            var month = item.dataset.month;
+            var modalEl = document.getElementById('statDetailsModal');
+            if (!modalEl || typeof bootstrap === 'undefined') return;
+
+            var monthName = azMonths[parseInt(month, 10)] || month;
+            document.getElementById('statDetailsTitle').textContent = monthName + ' ' + year + ' Qeydiyyatları';
+            document.getElementById('statDetailsLoading').classList.remove('d-none');
+            document.getElementById('statDetailsContent').classList.add('d-none');
+            document.getElementById('statDetailsEmpty').classList.add('d-none');
+            document.getElementById('statDetailsHead').innerHTML = '';
+            document.getElementById('statDetailsBody').innerHTML = '';
+
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+            var url = 'qeydiyyatar/qeydiyyat_stat_operations.php?type=month'
+                + '&year=' + encodeURIComponent(year)
+                + '&month=' + encodeURIComponent(month);
+
+            fetch(url)
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    document.getElementById('statDetailsLoading').classList.add('d-none');
+                    if (data.status !== 'success' || !data.data || !data.data.length) {
+                        document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                        return;
+                    }
+                    document.getElementById('statDetailsContent').classList.remove('d-none');
+                    var headHtml = '<tr>';
+                    data.columns.forEach(function (column) {
+                        headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+                    });
+                    headHtml += '</tr>';
+                    document.getElementById('statDetailsHead').innerHTML = headHtml;
+
+                    var bodyHtml = '';
+                    data.data.forEach(function (row) {
+                        bodyHtml += '<tr>';
+                        data.columns.forEach(function (column) {
+                            bodyHtml += '<td>' + escapeHtml(row[column.key] ?? '-') + '</td>';
+                        });
+                        bodyHtml += '</tr>';
+                    });
+                    document.getElementById('statDetailsBody').innerHTML = bodyHtml;
+                })
+                .catch(function () {
+                    document.getElementById('statDetailsLoading').classList.add('d-none');
+                    document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                });
+        }
+
+        document.querySelectorAll('.monthly-stats-item-clickable').forEach(function (item) {
+            item.addEventListener('click', function () {
+                openMonthlyStatModal(item);
+            });
+            item.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openMonthlyStatModal(item);
+                }
+            });
+        });
+    });
     </script>
 
 </body>

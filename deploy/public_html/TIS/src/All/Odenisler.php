@@ -180,6 +180,14 @@ include('navbar_sidebar.php');
     .odenis-stat-card { border: none; border-radius: 12px; box-shadow: 0 4px 14px rgba(30,58,138,.08); }
     .odenis-stat-card .stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1.2; }
     .odenis-stat-card .stat-label { color: #64748b; font-size: .9rem; }
+    .odenis-stat-card.stat-card-clickable {
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .odenis-stat-card.stat-card-clickable:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(30, 58, 138, 0.15);
+    }
     .filter-panel { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 4px 14px rgba(30,58,138,.06); margin-bottom: 20px; }
     .table-card { border: none; border-radius: 12px; box-shadow: 0 4px 14px rgba(30,58,138,.08); overflow: hidden; }
     .odenis-table thead th { background: #f8fafc; border-top: none; font-weight: 600; color: #334155; white-space: nowrap; }
@@ -320,7 +328,7 @@ include('navbar_sidebar.php');
 
     <div class="row mb-3 mb-md-4">
         <div class="col-6 col-md-3 mb-3">
-            <div class="card odenis-stat-card h-100">
+            <div class="card odenis-stat-card stat-card-clickable h-100" data-stat-type="total" role="button" tabindex="0" aria-label="Ümumi ödəniş qeydlərini göstər">
                 <div class="card-body">
                     <div class="stat-value text-primary"><?= (int) $stats['total'] ?></div>
                     <div class="stat-label">Ümumi ödəniş qeydi</div>
@@ -328,7 +336,7 @@ include('navbar_sidebar.php');
             </div>
         </div>
         <div class="col-6 col-md-3 mb-3">
-            <div class="card odenis-stat-card h-100">
+            <div class="card odenis-stat-card stat-card-clickable h-100" data-stat-type="gecikmis" role="button" tabindex="0" aria-label="Gecikmiş ödənişləri göstər">
                 <div class="card-body">
                     <div class="stat-value text-danger"><?= (int) $stats['gecikmis'] ?></div>
                     <div class="stat-label">Gecikmiş ödəniş</div>
@@ -336,7 +344,7 @@ include('navbar_sidebar.php');
             </div>
         </div>
         <div class="col-6 col-md-3 mb-3">
-            <div class="card odenis-stat-card h-100">
+            <div class="card odenis-stat-card stat-card-clickable h-100" data-stat-type="bu_ay" role="button" tabindex="0" aria-label="Bu ay ödənilməli siyahını göstər">
                 <div class="card-body">
                     <div class="stat-value text-warning"><?= (int) $stats['bu_ay'] ?></div>
                     <div class="stat-label">Bu ay ödənilməli</div>
@@ -344,7 +352,7 @@ include('navbar_sidebar.php');
             </div>
         </div>
         <div class="col-6 col-md-3 mb-3">
-            <div class="card odenis-stat-card h-100">
+            <div class="card odenis-stat-card stat-card-clickable h-100" data-stat-type="paket" role="button" tabindex="0" aria-label="Paket ödənişləri göstər">
                 <div class="card-body">
                     <div class="stat-value text-info"><?= (int) $stats['paket'] ?></div>
                     <div class="stat-label">Paket ödəniş</div>
@@ -535,4 +543,104 @@ include('navbar_sidebar.php');
         });
     }
 })();
+</script>
+
+<div class="modal fade" id="statDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+            </div>
+            <div class="modal-body">
+                <div id="statDetailsLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+                <div class="table-responsive d-none" id="statDetailsContent">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="thead-light" id="statDetailsHead"></thead>
+                        <tbody id="statDetailsBody"></tbody>
+                    </table>
+                </div>
+                <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">Məlumat tapılmadı</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var odenisStatTitles = {
+        total: 'Ümumi Ödəniş Qeydləri',
+        gecikmis: 'Gecikmiş Ödənişlər',
+        bu_ay: 'Bu Ay Ödənilməli',
+        paket: 'Paket Ödənişlər'
+    };
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
+    }
+
+    function openOdenisStatModal(type) {
+        var modalEl = document.getElementById('statDetailsModal');
+        if (!modalEl || typeof bootstrap === 'undefined') return;
+
+        document.getElementById('statDetailsTitle').textContent = odenisStatTitles[type] || 'Məlumatlar';
+        document.getElementById('statDetailsLoading').classList.remove('d-none');
+        document.getElementById('statDetailsContent').classList.add('d-none');
+        document.getElementById('statDetailsEmpty').classList.add('d-none');
+        document.getElementById('statDetailsHead').innerHTML = '';
+        document.getElementById('statDetailsBody').innerHTML = '';
+
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+        fetch('qeydiyyatar/odenis_stat_operations.php?type=' + encodeURIComponent(type))
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                document.getElementById('statDetailsLoading').classList.add('d-none');
+                if (data.status !== 'success' || !data.data || !data.data.length) {
+                    document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                    return;
+                }
+                document.getElementById('statDetailsContent').classList.remove('d-none');
+                var headHtml = '<tr>';
+                data.columns.forEach(function (column) {
+                    headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+                });
+                headHtml += '</tr>';
+                document.getElementById('statDetailsHead').innerHTML = headHtml;
+
+                var bodyHtml = '';
+                data.data.forEach(function (row) {
+                    bodyHtml += '<tr>';
+                    data.columns.forEach(function (column) {
+                        bodyHtml += '<td>' + escapeHtml(row[column.key] ?? '-') + '</td>';
+                    });
+                    bodyHtml += '</tr>';
+                });
+                document.getElementById('statDetailsBody').innerHTML = bodyHtml;
+            })
+            .catch(function () {
+                document.getElementById('statDetailsLoading').classList.add('d-none');
+                document.getElementById('statDetailsEmpty').classList.remove('d-none');
+            });
+    }
+
+    document.querySelectorAll('.odenis-stat-card.stat-card-clickable').forEach(function (card) {
+        card.addEventListener('click', function () {
+            openOdenisStatModal(card.dataset.statType);
+        });
+        card.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openOdenisStatModal(card.dataset.statType);
+            }
+        });
+    });
+});
 </script>

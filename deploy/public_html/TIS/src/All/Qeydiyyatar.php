@@ -1,5 +1,7 @@
 <?php
 include('db.php');
+require_once __DIR__ . '/user_credentials_helper.php';
+app_ensure_plain_password_column($conn);
 require_once __DIR__ . '/qeydiyyatar/services_helpers.php';
 require_once __DIR__ . '/qeydiyyatar/odenis_helpers.php';
 odenis_ensure_columns($conn);
@@ -145,7 +147,7 @@ function sendCredentialsEmail($email, $username, $password, $fullName, $u_id, $p
                         <div class='credentials-card'>
                             <h3>Giriş Məlumatları</h3>
                             <div class='info-row'>
-                                <span class='info-label'>İstifadəçi Adı:</span>
+                                <span class='info-label'>FIN kod:</span>
                                 <span class='info-value'>$username</span>
                             </div>
                             <div class='info-row'>
@@ -245,7 +247,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
         $ad_soyad     = $ad . ($ad && $soyad ? '.' : '') . $soyad;
         $ad_soyad_db  = mysqli_real_escape_string($conn, $ad_soyad);
         $fullName     = $ad . ($ad && $soyad ? ' ' : '') . $soyad;
-        $username     = $ad_soyad;
 
         $ata_adi       = mysqli_real_escape_string($conn, trim($_POST['ata_adi'] ?? ''));
         $dogum_tarixi  = trim($_POST['dogum_tarixi'] ?? ''); // trim first
@@ -255,9 +256,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
         $ixtisas       = mysqli_real_escape_string($conn, trim($_POST['ixtisas'] ?? ''));
         $qebul_ili     = mysqli_real_escape_string($conn, trim($_POST['qebul_ili'] ?? ''));
         $is_nomresi    = mysqli_real_escape_string($conn, trim($_POST['is_nomresi'] ?? ''));
-        $fin_kod       = mysqli_real_escape_string($conn, trim($_POST['fin_kod'] ?? ''));
+        $fin_kod       = app_normalize_fin_kod($_POST['fin_kod'] ?? '');
+        $fin_kod_db    = mysqli_real_escape_string($conn, $fin_kod);
         $bakalavr_bali = mysqli_real_escape_string($conn, trim($_POST['bakalavr_bali'] ?? ''));
         $magistr_bali  = mysqli_real_escape_string($conn, trim($_POST['magistr_bali'] ?? ''));
+
+        if (!app_is_valid_fin_kod($fin_kod)) {
+            throw new Exception('FIN kod 7 simvoldan ibarət olmalıdır (hərf və rəqəm).');
+        }
+
+        $username = $fin_kod;
+
+        $fin_check_stmt = mysqli_prepare($conn, 'SELECT id FROM users WHERE username = ? LIMIT 1');
+        if ($fin_check_stmt) {
+            mysqli_stmt_bind_param($fin_check_stmt, 's', $username);
+            mysqli_stmt_execute($fin_check_stmt);
+            mysqli_stmt_store_result($fin_check_stmt);
+            if (mysqli_stmt_num_rows($fin_check_stmt) > 0) {
+                mysqli_stmt_close($fin_check_stmt);
+                throw new Exception('Bu FIN kod ilə artıq istifadəçi mövcuddur.');
+            }
+            mysqli_stmt_close($fin_check_stmt);
+        }
+
+        $fin_telebe_stmt = mysqli_prepare($conn, 'SELECT id FROM telebeler WHERE UPPER(reg_fin_kod) = ? LIMIT 1');
+        if ($fin_telebe_stmt) {
+            mysqli_stmt_bind_param($fin_telebe_stmt, 's', $fin_kod);
+            mysqli_stmt_execute($fin_telebe_stmt);
+            mysqli_stmt_store_result($fin_telebe_stmt);
+            if (mysqli_stmt_num_rows($fin_telebe_stmt) > 0) {
+                mysqli_stmt_close($fin_telebe_stmt);
+                throw new Exception('Bu FIN kod artıq qeydiyyatdan keçib.');
+            }
+            mysqli_stmt_close($fin_telebe_stmt);
+        }
 
         $bolme         = mysqli_real_escape_string($conn, $_POST['bolme']    ?? '');
         $tedris        = mysqli_real_escape_string($conn, $_POST['tedris']   ?? '');
@@ -300,12 +332,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
         }
 
         $payableTotal = odenis_effective_fee($tehsil_haqqi, $endirim_meqdar);
-        $odenisPlani = $odenis_novu === 'ayliq'
+        $odenisPlani = $payableTotal > 0
             ? odenis_split_monthly_schedule($payableTotal)
             : [];
         $odenis_plani_json = $odenisPlani !== [] ? json_encode($odenisPlani, JSON_UNESCAPED_UNICODE) : null;
 
-        $ilkin_odenis = 0.0;
+        $ilkin_odenis = odenis_ilkin_mebleg();
         $novbeti_odenis_tarixi = odenis_next_due_date($baslama_tarixi, $odenis_novu);
         $vetandasliq = 'Azərbaycan';
         $muellim_adi_db = 'Təyin edilməyib';
@@ -315,7 +347,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
         $active_status = 'active';
 
         $u_id = generateUID($conn);
-        $password = generateRandomPassword();
+        $password = $fin_kod . '5';
         $password_hash = app_hash_password($password);
         $company_id = 0;
 
@@ -347,10 +379,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
 
         // users
         $user_query = "INSERT INTO users 
-                       (username, password, role, u_id, created_at, updated_at) 
-                       VALUES (?, ?, 'student', ?, NOW(), NOW())";
+                       (username, password, plain_password, role, u_id, created_at, updated_at) 
+                       VALUES (?, ?, ?, 'student', ?, NOW(), NOW())";
         $user_stmt = mysqli_prepare($conn, $user_query);
-        mysqli_stmt_bind_param($user_stmt, 'sss', $username, $password_hash, $u_id);
+        mysqli_stmt_bind_param($user_stmt, 'ssss', $username, $password_hash, $password, $u_id);
         mysqli_stmt_execute($user_stmt) or throw new Exception("users insert failed");
         mysqli_stmt_close($user_stmt);
 
@@ -390,7 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
             $dogum_tarixi,
             $is_nomresi,
             $telefon,
-            $fin_kod,
+            $fin_kod_db,
             $email,
             $bakalavr_bali,
             $magistr_bali,
@@ -434,7 +466,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
             $dogum_tarixi,
             $is_nomresi,
             $telefon,
-            $fin_kod,
+            $fin_kod_db,
             $email,
             $bakalavr_bali,
             $magistr_bali,
@@ -738,7 +770,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
                 <div class="form-group"><label>Doğum tarixi:</label><input type="date" name="dogum_tarixi" value="<?= form_val('dogum_tarixi') ?>"></div>
                 <div class="form-group"><label>İş nömrəsi:</label><input type="text" name="is_nomresi" value="<?= form_val('is_nomresi') ?>"></div>
                 <div class="form-group"><label>Telefon: *</label><input type="tel" name="telefon" value="<?= form_val('telefon') ?>" placeholder="+994 XX XXX XX XX" required></div>
-                <div class="form-group"><label>FIN kod:</label><input type="text" name="fin_kod" value="<?= form_val('fin_kod') ?>" maxlength="7" placeholder="XXXXXXX"></div>
+                <div class="form-group"><label>FIN kod: *</label><input type="text" name="fin_kod" value="<?= form_val('fin_kod') ?>" maxlength="7" placeholder="XXXXXXX" required style="text-transform: uppercase;"></div>
                 <div class="form-group"><label>E-mail: *</label><input type="email" name="email" value="<?= form_val('email') ?>" required></div>
                 <div class="form-group-double">
                     <div class="form-group"><label>Bakalavr balı:</label><input type="text" name="bakalavr_bali" id="bakalavr_bali" value="<?= form_val('bakalavr_bali') ?>" inputmode="decimal" placeholder="Abituriyent üçün endirim"></div>
@@ -913,7 +945,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_registration']
                 </div>
             </div>
             <div id="odenisPlanXulase" class="odenis-plan-xulase" style="display:none">
-                <strong>Aylıq ödəniş planı</strong>
+                <strong>Ödəniş planı</strong>
                 <div id="odenisPlanInfo"></div>
                 <ul id="odenisPlanList"></ul>
             </div>
@@ -1006,6 +1038,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const xidmetPrices = <?= json_encode($xidmet_price_map, JSON_UNESCAPED_UNICODE) ?>;
     const minAylikOdenis = <?= json_encode(odenis_min_ayliq_mebleg()) ?>;
+    const ilkinOdenisMebleg = <?= json_encode(odenis_ilkin_mebleg()) ?>;
     const abituriyentAktiv = <?= json_encode(qeydiyyat_is_abituriyent_active($conn)) ?>;
     const odenisNovu = document.querySelector('select[name="odenis_novu"]');
     const aylikInfo = document.getElementById('ayliqOdenisInfo');
@@ -1034,6 +1067,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (amount <= 0) {
             return [];
         }
+        if (amount < minMonthly) {
+            return [amount];
+        }
 
         const fullMonths = Math.floor(amount / minMonthly);
         const remainder = Math.round((amount - (fullMonths * minMonthly)) * 100) / 100;
@@ -1044,8 +1080,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (remainder > 0.009) {
             schedule.push(remainder);
-        } else if (!schedule.length) {
-            schedule.push(amount);
         }
 
         return schedule;
@@ -1068,11 +1102,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const isAylik = odenisNovu?.value === 'ayliq';
         const payable = getPayableTotal();
-        const schedule = isAylik ? splitMonthlySchedule(payable) : [];
+        const schedule = payable > 0 ? splitMonthlySchedule(payable) : [];
+        const isPaket = odenisNovu?.value === 'paket';
 
-        if (!isAylik || !schedule.length) {
+        if (!schedule.length) {
             odenisPlanXulase.style.display = 'none';
             odenisPlanList.innerHTML = '';
             odenisPlanInfo.textContent = '';
@@ -1080,18 +1114,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         odenisPlanXulase.style.display = 'block';
-        odenisPlanInfo.innerHTML = 'Ödəniləcək məbləğ <strong>' + payable.toFixed(2) + ' AZN</strong> üzrə '
-            + schedule.length + ' ay, hər ay minimum <strong>' + minAylikOdenis.toFixed(2) + ' AZN</strong>.';
+        const planNote = isPaket
+            ? 'Paket üzrə ödəniş planı'
+            : 'Aylıq ödəniş planı';
+        odenisPlanInfo.innerHTML = planNote + ': təhsil haqqı <strong>' + payable.toFixed(2) + ' AZN</strong>'
+            + ' + ilkin ödəniş <strong>' + ilkinOdenisMebleg.toFixed(2) + ' AZN</strong> (dərs vəsaitləri).';
 
-        odenisPlanList.innerHTML = schedule.map(function(amount, index) {
+        let planHtml = '<li>İlkin ödəniş (dərs vəsaitləri): <strong>' + ilkinOdenisMebleg.toFixed(2) + ' AZN</strong></li>';
+        planHtml += schedule.map(function(amount, index) {
             const isLast = index === schedule.length - 1;
-            const isRemainder = isLast && amount < minAylikOdenis;
-            const label = isRemainder
-                ? (schedule.length === 1 ? 'Ödəniş' : 'Son ay (qalıq borc)')
-                : ((index + 1) + '. ay');
+            const isRemainder = isLast && schedule.length > 1 && amount < minAylikOdenis;
+            const label = schedule.length === 1
+                ? 'Ödəniş'
+                : (isRemainder ? 'Son ay (qalıq)' : ((index + 1) + '. ay (130 AZN)'));
             const className = isRemainder ? ' class="last-month"' : '';
             return '<li' + className + '>' + label + ': <strong>' + amount.toFixed(2) + ' AZN</strong></li>';
         }).join('');
+        odenisPlanList.innerHTML = planHtml;
     }
 
     function updateOdenisInfo() {

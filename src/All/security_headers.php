@@ -123,7 +123,7 @@ if (!function_exists('app_apply_security_headers')) {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://stackpath.bootstrapcdn.com",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://stackpath.bootstrapcdn.com https://code.jquery.com",
             "connect-src 'self'",
-            "media-src 'self'",
+            "media-src 'self' blob:",
             "worker-src 'self' blob:",
             "upgrade-insecure-requests",
         ];
@@ -193,7 +193,7 @@ if (!function_exists('app_apply_security_headers')) {
         header('Content-Security-Policy: ' . app_content_security_policy());
         header('X-Frame-Options: SAMEORIGIN');
         header('Referrer-Policy: same-origin');
-        header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+        header('Permissions-Policy: camera=(self), microphone=(), geolocation=()');
         header('Cross-Origin-Resource-Policy: same-origin');
         header('Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers');
 

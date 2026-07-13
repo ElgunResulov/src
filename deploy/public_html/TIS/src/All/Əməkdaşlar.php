@@ -118,6 +118,16 @@ include('navbar_sidebar.php');
             font-weight: 500;
         }
 
+        .stat-card-clickable {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card-clickable:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
         .btn {
             border-radius: 6px;
             font-weight: 500;
@@ -352,7 +362,7 @@ include('navbar_sidebar.php');
 
         <div class="row">
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-primary text-white h-100" id="totalEmployees">
+                <div class="card stat-card stat-card-clickable bg-primary text-white h-100" id="totalEmployees" data-stat-type="all" role="button" tabindex="0" aria-label="Bütün əməkdaşları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-users fa-lg"></i>
@@ -364,7 +374,7 @@ include('navbar_sidebar.php');
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-success text-white h-100" id="teachingEmployees">
+                <div class="card stat-card stat-card-clickable bg-success text-white h-100" id="teachingEmployees" data-stat-type="teaching" role="button" tabindex="0" aria-label="Müəllim əməkdaşları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-chalkboard-teacher fa-lg"></i>
@@ -376,7 +386,7 @@ include('navbar_sidebar.php');
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-info text-white h-100" id="adminEmployees">
+                <div class="card stat-card stat-card-clickable bg-info text-white h-100" id="adminEmployees" data-stat-type="admin" role="button" tabindex="0" aria-label="İnzibati əməkdaşları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-user-tie fa-lg"></i>
@@ -388,7 +398,7 @@ include('navbar_sidebar.php');
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-warning text-white h-100" id="technicalEmployees">
+                <div class="card stat-card stat-card-clickable bg-warning text-white h-100" id="technicalEmployees" data-stat-type="technical" role="button" tabindex="0" aria-label="Texniki əməkdaşları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-user-cog fa-lg"></i>
@@ -1378,6 +1388,109 @@ include('navbar_sidebar.php');
                 $('#addEmployeeModal').modal('show');
             });
 
+    </script>
+
+    <div class="modal fade" id="statDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statDetailsLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <div class="table-responsive d-none" id="statDetailsContent">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="thead-light" id="statDetailsHead"></thead>
+                            <tbody id="statDetailsBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">Məlumat tapılmadı</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        var employeeStatTitles = {
+            all: 'Bütün Əməkdaşlar',
+            teaching: 'Müəllim Əməkdaşlar',
+            admin: 'İnzibati Əməkdaşlar',
+            technical: 'Texniki Əməkdaşlar'
+        };
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function openEmployeeStatModal(type) {
+            var modalEl = document.getElementById('statDetailsModal');
+            if (!modalEl) return;
+
+            document.getElementById('statDetailsTitle').textContent = employeeStatTitles[type] || 'Məlumatlar';
+            document.getElementById('statDetailsLoading').classList.remove('d-none');
+            document.getElementById('statDetailsContent').classList.add('d-none');
+            document.getElementById('statDetailsEmpty').classList.add('d-none');
+            document.getElementById('statDetailsHead').innerHTML = '';
+            document.getElementById('statDetailsBody').innerHTML = '';
+
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+            fetch('emekdaslar/stat_operations.php?type=' + encodeURIComponent(type))
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    document.getElementById('statDetailsLoading').classList.add('d-none');
+                    if (data.status !== 'success' || !data.data || !data.data.length) {
+                        document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                        return;
+                    }
+                    var columns = data.columns;
+                    var rows = data.data;
+                    document.getElementById('statDetailsContent').classList.remove('d-none');
+
+                    var headHtml = '<tr>';
+                    columns.forEach(function (column) {
+                        headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+                    });
+                    headHtml += '</tr>';
+                    document.getElementById('statDetailsHead').innerHTML = headHtml;
+
+                    var bodyHtml = '';
+                    rows.forEach(function (row) {
+                        bodyHtml += '<tr>';
+                        columns.forEach(function (column) {
+                            bodyHtml += '<td>' + escapeHtml(row[column.key] ?? '-') + '</td>';
+                        });
+                        bodyHtml += '</tr>';
+                    });
+                    document.getElementById('statDetailsBody').innerHTML = bodyHtml;
+                })
+                .catch(function () {
+                    document.getElementById('statDetailsLoading').classList.add('d-none');
+                    document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                });
+        }
+
+        document.querySelectorAll('.stat-card-clickable').forEach(function (card) {
+            card.addEventListener('click', function () {
+                openEmployeeStatModal(card.dataset.statType);
+            });
+            card.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openEmployeeStatModal(card.dataset.statType);
+                }
+            });
+        });
+    })();
     </script>
 </body>
 </html>

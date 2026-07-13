@@ -1,5 +1,7 @@
 <?php
 include('navbar_sidebar.php');
+require_once __DIR__ . '/statistika/dashboard_stats_helper.php';
+$dashboardStats = dashboard_load_stats($conn);
 ?>
 
 <!DOCTYPE html>
@@ -156,6 +158,16 @@ include('navbar_sidebar.php');
             opacity: 0.9;
             margin-bottom: 0.5rem;
             font-weight: 500;
+        }
+
+        .stat-card-clickable {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card-clickable:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
         }
 
         .stat-card .stat-trend {
@@ -462,55 +474,58 @@ include('navbar_sidebar.php');
         <!-- Statistics Cards -->
         <div class="row">
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-primary text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-primary text-white h-100" data-stat-type="students" role="button" tabindex="0" aria-label="Tələbələri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-user-graduate fa-lg"></i>
                         </div>
                         <h6 class="stat-title">Ümumi Tələbələr</h6>
-                        <h3 class="stat-number">486</h3>
-                        <div class="stat-trend stat-trend-up">
-                            <i class="fas fa-arrow-up"></i> Keçən ildən: +5.2%
+                        <h3 class="stat-number"><?= (int) $dashboardStats['total_students'] ?></h3>
+                        <div class="stat-trend <?= $dashboardStats['student_trend_pct'] >= 0 ? 'stat-trend-up' : 'stat-trend-down' ?>">
+                            <i class="fas fa-arrow-<?= $dashboardStats['student_trend_pct'] >= 0 ? 'up' : 'down' ?>"></i>
+                            Keçən ildən: <?= ($dashboardStats['student_trend_pct'] >= 0 ? '+' : '') . $dashboardStats['student_trend_pct'] ?>%
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-success text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-success text-white h-100" data-stat-type="grades" role="button" tabindex="0" aria-label="Orta balları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-chart-bar fa-lg"></i>
                         </div>
                         <h6 class="stat-title">Orta Bal</h6>
-                        <h3 class="stat-number">78.6</h3>
-                        <div class="stat-trend stat-trend-up">
-                            <i class="fas fa-arrow-up"></i> Keçən ildən: +2.3
+                        <h3 class="stat-number"><?= htmlspecialchars((string) $dashboardStats['avg_grade'], ENT_QUOTES, 'UTF-8') ?></h3>
+                        <div class="stat-trend <?= $dashboardStats['grade_trend'] >= 0 ? 'stat-trend-up' : 'stat-trend-down' ?>">
+                            <i class="fas fa-arrow-<?= $dashboardStats['grade_trend'] >= 0 ? 'up' : 'down' ?>"></i>
+                            Keçən ildən: <?= ($dashboardStats['grade_trend'] >= 0 ? '+' : '') . $dashboardStats['grade_trend'] ?>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-info text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-info text-white h-100" data-stat-type="attendance" role="button" tabindex="0" aria-label="Davamiyyəti göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-user-check fa-lg"></i>
                         </div>
                         <h6 class="stat-title">Davamiyyət</h6>
-                        <h3 class="stat-number">94.2%</h3>
-                        <div class="stat-trend stat-trend-up">
-                            <i class="fas fa-arrow-up"></i> Keçən ildən: +1.5%
+                        <h3 class="stat-number"><?= htmlspecialchars((string) $dashboardStats['attendance_pct'], ENT_QUOTES, 'UTF-8') ?>%</h3>
+                        <div class="stat-trend <?= $dashboardStats['attendance_trend'] >= 0 ? 'stat-trend-up' : 'stat-trend-down' ?>">
+                            <i class="fas fa-arrow-<?= $dashboardStats['attendance_trend'] >= 0 ? 'up' : 'down' ?>"></i>
+                            Keçən ildən: <?= ($dashboardStats['attendance_trend'] >= 0 ? '+' : '') . $dashboardStats['attendance_trend'] ?>%
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-warning text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-warning text-white h-100" data-stat-type="olympiad" role="button" tabindex="0" aria-label="Olimpiada məlumatlarını göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-trophy fa-lg"></i>
                         </div>
                         <h6 class="stat-title">Olimpiada Uğurları</h6>
-                        <h3 class="stat-number">28</h3>
+                        <h3 class="stat-number"><?= (int) $dashboardStats['olympiad_count'] ?></h3>
                         <div class="stat-trend stat-trend-up">
                             <i class="fas fa-arrow-up"></i> Keçən ildən: +8
                         </div>
@@ -888,11 +903,55 @@ include('navbar_sidebar.php');
     <script src="../dist/js/sidebarmenu.js"></script>
     <script src="../dist/js/custom.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Stat Details Modal -->
+    <div class="modal fade" id="statDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statDetailsLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <div class="table-responsive d-none" id="statDetailsContent">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="thead-light" id="statDetailsHead"></thead>
+                            <tbody id="statDetailsBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">Məlumat tapılmadı</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <script>
+        const statTitles = {
+            students: 'Ümumi Tələbələr',
+            grades: 'Orta Ballar',
+            attendance: 'Davamiyyət',
+            olympiad: 'Olimpiada Uğurları'
+        };
+
         $(document).ready(function() {
-            // Hide preloader when page is loaded
             $(".preloader").fadeOut();
+
+            $('.stat-card-clickable').on('click', function () {
+                openStatDetailsModal($(this).data('stat-type'));
+            });
+
+            $('.stat-card-clickable').on('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openStatDetailsModal($(this).data('stat-type'));
+                }
+            });
             
             // Initialize tooltips
             $('[data-toggle="tooltip"]').tooltip();
@@ -1152,6 +1211,69 @@ include('navbar_sidebar.php');
             // Initialize all charts on page load
             updateCharts();
         });
+
+        function openStatDetailsModal(type) {
+            $('#statDetailsTitle').text(statTitles[type] || 'Məlumatlar');
+            $('#statDetailsLoading').removeClass('d-none');
+            $('#statDetailsContent').addClass('d-none');
+            $('#statDetailsEmpty').addClass('d-none');
+            $('#statDetailsHead').empty();
+            $('#statDetailsBody').empty();
+
+            const modalEl = document.getElementById('statDetailsModal');
+            if (modalEl) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+
+            $.ajax({
+                url: 'statistika/stat_operations.php?type=' + encodeURIComponent(type),
+                type: 'GET',
+                dataType: 'json',
+                success: function (response) {
+                    $('#statDetailsLoading').addClass('d-none');
+                    if (response.status === 'success' && response.data && response.data.length > 0) {
+                        renderStatDetailsTable(response.columns, response.data);
+                        $('#statDetailsContent').removeClass('d-none');
+                    } else {
+                        $('#statDetailsEmpty').removeClass('d-none');
+                    }
+                },
+                error: function () {
+                    $('#statDetailsLoading').addClass('d-none');
+                    $('#statDetailsEmpty').removeClass('d-none');
+                }
+            });
+        }
+
+        function renderStatDetailsTable(columns, rows) {
+            const escapeHtml = (value) => String(value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
+            let headHtml = '<tr>';
+            columns.forEach(function (column) {
+                headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+            });
+            headHtml += '</tr>';
+            $('#statDetailsHead').html(headHtml);
+
+            let bodyHtml = '';
+            rows.forEach(function (row) {
+                bodyHtml += '<tr>';
+                columns.forEach(function (column) {
+                    let value = row[column.key] ?? '-';
+                    if (column.key === 'status_label') {
+                        const badgeClass = value === 'Aktiv' ? 'badge-success' : 'badge-danger';
+                        value = '<span class="badge ' + badgeClass + '">' + escapeHtml(value) + '</span>';
+                    } else {
+                        value = escapeHtml(value);
+                    }
+                    bodyHtml += '<td>' + value + '</td>';
+                });
+                bodyHtml += '</tr>';
+            });
+            $('#statDetailsBody').html(bodyHtml);
+        }
     </script>
 </body>
 </html>

@@ -99,6 +99,17 @@ function isActive($page) {
     <link href="../dist/css/style.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        .badge.badge-success,
+        span.badge.badge-success {
+            color: #7c8798 !important;
+            background-color: rgba(124, 135, 152, 0.14) !important;
+        }
+        .modal-backdrop {
+            z-index: 1050 !important;
+        }
+        .modal.fade {
+            z-index: 1055 !important;
+        }
         .dropdown-menu { display: none; position: absolute; z-index: 1000; }
         .dropdown-menu.show { display: block; }
         .dropdown-toggle { cursor: pointer; }
@@ -242,6 +253,14 @@ if ($username_length > 15) {
                         <a class="sidebar-link <?= isActive('Hesablar.php') ?>" href="Hesablar.php" aria-expanded="false">
                             <i data-feather="users" class="feather-icon"></i>
                             <span class="hide-menu">Hesablar</span>
+                        </a>
+                    </li>
+                    <?php endif; ?>
+                    <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['super_admin', 'admin'], true)): ?>
+                    <li class="sidebar-item other">
+                        <a class="sidebar-link <?= isActive('Parol_idareetme.php') ?>" href="Parol_idareetme.php" aria-expanded="false">
+                            <i data-feather="key" class="feather-icon"></i>
+                            <span class="hide-menu">Parol İdarəetməsi</span>
                         </a>
                     </li>
                     <?php endif; ?>
@@ -683,14 +702,6 @@ if ($username_length > 15) {
             });
         }
     </script>
-    <script src="../assets/extra-libs/c3/d3.min.js"></script>
-    <script src="../assets/extra-libs/c3/c3.min.js"></script>
-    <script src="../assets/libs/chartist/dist/chartist.min.js"></script>
-    <script src="../assets/libs/chartist-plugin-tooltips/dist/chartist-plugin-tooltip.min.js"></script>
-    <script src="../assets/extra-libs/jvector/jquery-jvectormap-2.0.2.min.js"></script>
-    <script src="../assets/extra-libs/jvector/jquery-jvectormap-world-mill-en.js"></script>
-    <script src="../dist/js/pages/dashboards/dashboard1.min.js"></script>
-    
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const dropdownToggle = document.getElementById('userDropdown');

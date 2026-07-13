@@ -20,6 +20,7 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
 
 // Include database connection
 require_once '../db.php';
+require_once __DIR__ . '/qr_helpers.php';
 
 // Set header to return JSON response
 header('Content-Type: application/json');
@@ -193,6 +194,18 @@ try {
         throw new Exception('İstifadəçi yenilənməsi zamanı xəta: ' . mysqli_stmt_error($stmt));
     }
     mysqli_stmt_close($stmt);
+
+    $teacher_sql = 'SELECT id, u_id, username, qr_code, active_status FROM muellimler_new WHERE id = ? LIMIT 1';
+    $stmt = mysqli_prepare($conn, $teacher_sql);
+    mysqli_stmt_bind_param($stmt, 'i', $id);
+    mysqli_stmt_execute($stmt);
+    $teacher_result = mysqli_stmt_get_result($stmt);
+    $teacher_row = mysqli_fetch_assoc($teacher_result);
+    mysqli_stmt_close($stmt);
+
+    if ($teacher_row) {
+        qr_activate_teacher($conn, $teacher_row, true);
+    }
 
     // Commit transaction
     mysqli_commit($conn);

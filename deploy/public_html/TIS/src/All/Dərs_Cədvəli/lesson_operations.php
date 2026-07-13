@@ -420,4 +420,109 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $conn->close();
     }
 }
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'stat_details') {
+    $type = trim((string) ($_GET['type'] ?? ''));
+    $columns = [];
+    $query = '';
+
+    switch ($type) {
+        case 'lessons':
+            $query = "SELECT d.id, d.fenn, d.sinif, d.tarix,
+                             CONCAT(d.start_time, ' - ', d.end_time) as vaxt,
+                             d.otaq, d.status,
+                             COALESCE(m.username, d.muellim) as muellim_adi
+                      FROM dersler d
+                      LEFT JOIN muellimler_new m ON d.muellim_id = m.id
+                      WHERE d.active_status = 1
+                      ORDER BY d.tarix DESC, d.start_time ASC";
+            $columns = [
+                ['key' => 'id', 'label' => 'ID'],
+                ['key' => 'fenn', 'label' => 'Fənn'],
+                ['key' => 'sinif', 'label' => 'Sinif'],
+                ['key' => 'muellim_adi', 'label' => 'Müəllim'],
+                ['key' => 'tarix', 'label' => 'Tarix'],
+                ['key' => 'vaxt', 'label' => 'Vaxt'],
+                ['key' => 'otaq', 'label' => 'Otaq'],
+                ['key' => 'status', 'label' => 'Status'],
+            ];
+            break;
+
+        case 'teachers':
+            $query = "SELECT id, username, tehsil_ve_ixtisas, fenn, active_status
+                      FROM muellimler_new
+                      WHERE active_status = 'active'
+                      ORDER BY username ASC";
+            $columns = [
+                ['key' => 'id', 'label' => 'ID'],
+                ['key' => 'username', 'label' => 'Ad'],
+                ['key' => 'tehsil_ve_ixtisas', 'label' => 'İxtisas'],
+                ['key' => 'fenn', 'label' => 'Fənn'],
+                ['key' => 'status_label', 'label' => 'Status'],
+            ];
+            break;
+
+        case 'subjects':
+            $query = "SELECT fenn as fenn_adi, COUNT(*) as ders_sayi
+                      FROM dersler
+                      WHERE active_status = 1 AND fenn IS NOT NULL AND fenn != ''
+                      GROUP BY fenn
+                      ORDER BY fenn ASC";
+            $columns = [
+                ['key' => 'fenn_adi', 'label' => 'Fənn'],
+                ['key' => 'ders_sayi', 'label' => 'Dərs sayı'],
+            ];
+            break;
+
+        case 'rooms':
+            $query = "SELECT otaq as otaq_adi, COUNT(*) as ders_sayi
+                      FROM dersler
+                      WHERE active_status = 1 AND otaq IS NOT NULL AND otaq != ''
+                      GROUP BY otaq
+                      ORDER BY otaq ASC";
+            $columns = [
+                ['key' => 'otaq_adi', 'label' => 'Otaq'],
+                ['key' => 'ders_sayi', 'label' => 'Dərs sayı'],
+            ];
+            break;
+
+        default:
+            echo json_encode(['status' => 'error', 'message' => 'Yanlış statistik tipi.']);
+            exit;
+    }
+
+    $rows = [];
+    $result = mysqli_query($conn, $query);
+
+    if (!$result) {
+        echo json_encode(['status' => 'error', 'message' => 'Məlumat bazası xətası: ' . mysqli_error($conn)]);
+        exit;
+    }
+
+    while ($row = mysqli_fetch_assoc($result)) {
+        if ($type === 'teachers') {
+            $row['status_label'] = (($row['active_status'] ?? '') === 'active') ? 'Aktiv' : 'Passiv';
+        }
+
+        foreach ($row as $key => $value) {
+            if ($value === null || $value === '') {
+                $row[$key] = '-';
+            }
+        }
+
+        $rows[] = $row;
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'type' => $type,
+        'columns' => $columns,
+        'data' => $rows,
+    ]);
+
+    if (!isset($dontCloseConnection)) {
+        $conn->close();
+    }
+    exit;
+}
 ?>

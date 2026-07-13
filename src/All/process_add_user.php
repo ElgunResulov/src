@@ -1,5 +1,7 @@
 <?php
 include('db.php');
+require_once __DIR__ . '/user_credentials_helper.php';
+app_ensure_plain_password_column($conn);
 app_require_auth($conn);
 app_require_role(['super_admin', 'admin']);
 
@@ -10,29 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Function to generate random password in UyVuHZm3 format (7-8 characters)
 function generateRandomPassword($length = 8) {
-    $uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    $lowercase = 'abcdefghijklmnopqrstuvwxyz';
-    $numbers = '0123456789';
-    
-    $password = '';
-    
-    // Ensure at least one uppercase, one lowercase, and one number
-    $password .= $uppercase[rand(0, strlen($uppercase) - 1)];
-    $password .= $lowercase[rand(0, strlen($lowercase) - 1)];
-    $password .= $uppercase[rand(0, strlen($uppercase) - 1)];
-    $password .= $lowercase[rand(0, strlen($lowercase) - 1)];
-    $password .= $uppercase[rand(0, strlen($uppercase) - 1)];
-    $password .= $lowercase[rand(0, strlen($lowercase) - 1)];
-    $password .= $numbers[rand(0, strlen($numbers) - 1)];
-    
-    // Add one more character if length is 8
-    if ($length == 8) {
-        $allChars = $uppercase . $lowercase . $numbers;
-        $password .= $allChars[rand(0, strlen($allChars) - 1)];
-    }
-    
-    // Shuffle the password to randomize position
-    return str_shuffle($password);
+    return app_generate_random_password((int) $length);
 }
 
 function app_add_user_redirect(): string
@@ -254,9 +234,16 @@ try {
     $selected_student = trim($_POST['selected_student'] ?? '');
     $selected_parent = trim($_POST['selected_parent'] ?? '');
     $parent_type = trim($_POST['parent_type'] ?? '');
+    $customPassword = trim((string) ($_POST['password'] ?? ''));
 
-    // Generate a temporary password; only the hash is stored.
-    $password = generateRandomPassword(8);
+    if ($customPassword !== '') {
+        if (strlen($customPassword) < 6) {
+            showErrorModal('Şifrə ən azı 6 simvol olmalıdır.');
+        }
+        $password = $customPassword;
+    } else {
+        $password = generateRandomPassword(8);
+    }
     $password_hash = app_hash_password($password);
 
     // Validate required fields
@@ -378,11 +365,11 @@ try {
 
     try {
         if ($u_id !== null) {
-            $stmt = $conn->prepare("INSERT INTO users (username, password, role, company_id, u_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-            $stmt->bind_param("sssii", $username, $password_hash, $role, $company_id, $u_id);
+            $stmt = $conn->prepare("INSERT INTO users (username, password, plain_password, role, company_id, u_id, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+            $stmt->bind_param("ssssii", $username, $password_hash, $password, $role, $company_id, $u_id);
         } else {
-            $stmt = $conn->prepare("INSERT INTO users (username, password, role, company_id, created_at) VALUES (?, ?, ?, ?, NOW())");
-            $stmt->bind_param("sssi", $username, $password_hash, $role, $company_id);
+            $stmt = $conn->prepare("INSERT INTO users (username, password, plain_password, role, company_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+            $stmt->bind_param("ssssi", $username, $password_hash, $password, $role, $company_id);
         }
 
         if (!$stmt->execute()) {

@@ -2,11 +2,12 @@
 ob_start(); // Start output buffering to prevent stray output
 date_default_timezone_set('Asia/Baku');
 include('db.php');
+require_once __DIR__ . '/muellim/qr_helpers.php';
 include('navbar_sidebar.php');
 
 // QR code directory configuration
-$qr_code_dir = '../Uploads/qrcodes/';
-$qr_code_url = '../Uploads/qrcodes/';
+$qr_code_dir = MUELLIM_QRCODES_DIR . DIRECTORY_SEPARATOR;
+$qr_code_url = MUELLIM_QRCODES_URL;
 
 // Get current date and time
 $current_time = time();
@@ -265,6 +266,16 @@ if ($user_role == 'super_admin' || $user_role == 'admin') {
     $selected_teacher_username = $current_username;
 }
 
+if (in_array($user_role, ['super_admin', 'admin'], true)) {
+    try {
+        qr_activate_all_teachers($conn);
+    } catch (Exception $e) {
+        if (empty($error_message)) {
+            $error_message = $e->getMessage();
+        }
+    }
+}
+
 // Fetch selected teacher's data
 $teacher_sql = "SELECT id, u_id, tehsil_ve_ixtisas, username, fenn, qr_code, unvan FROM muellimler_new WHERE username = ? AND active_status = 'active'";
 $stmt = mysqli_prepare($conn, $teacher_sql);
@@ -275,6 +286,11 @@ $current_teacher = null;
 
 if ($teacher_result && mysqli_num_rows($teacher_result) > 0) {
     $current_teacher = mysqli_fetch_assoc($teacher_result);
+    try {
+        $current_teacher = qr_activate_teacher($conn, $current_teacher);
+    } catch (Exception $e) {
+        $error_message = $e->getMessage();
+    }
 } else {
     $error_message = "Müəllim məlumatları tapılmadı.";
 }
@@ -469,6 +485,10 @@ $next_date->modify('+1 month');
         .stat-card:hover {
             transform: translateY(-4px);
             box-shadow: var(--shadow-lg);
+        }
+
+        .stat-card-clickable {
+            cursor: pointer;
         }
 
         .stat-card::before {
@@ -714,11 +734,11 @@ $next_date->modify('+1 month');
             margin: 1px 0;
         }
 
-        /* Modal Improvements */
-        .modal {
+        /* Day details modal (custom, not Bootstrap) */
+        #dayModal {
             display: none;
             position: fixed;
-            z-index: 1000;
+            z-index: 1060;
             left: 0;
             top: 0;
             width: 100%;
@@ -728,17 +748,17 @@ $next_date->modify('+1 month');
             animation: fadeIn 0.3s ease;
         }
 
-        .modal.show {
+        #dayModal.show {
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .modal-content {
+        #dayModal .modal-content {
             background: var(--white);
             border-radius: var(--border-radius);
             width: 95%;
-            border:none;
+            border: none;
             max-width: 86%;
             max-height: 85vh;
             overflow: hidden;
@@ -746,7 +766,7 @@ $next_date->modify('+1 month');
             animation: slideIn 0.3s ease;
         }
 
-        .modal-header {
+        #dayModal .modal-header {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: var(--white);
             padding: 24px;
@@ -755,7 +775,7 @@ $next_date->modify('+1 month');
             align-items: center;
         }
 
-        .modal-header h2 {
+        #dayModal .modal-header h2 {
             font-size: 1.75rem;
             font-weight: 700;
             display: flex;
@@ -763,7 +783,7 @@ $next_date->modify('+1 month');
             gap: 12px;
         }
 
-        .close {
+        #dayModal .close {
             color: var(--white);
             font-size: 32px;
             font-weight: bold;
@@ -772,15 +792,19 @@ $next_date->modify('+1 month');
             padding: 4px;
         }
 
-        .close:hover {
+        #dayModal .close:hover {
             transition: 0.2s ease-in-out;
             color: rgba(246, 9, 9, 1);
         }
 
-        .modal-body {
+        #dayModal .modal-body {
             padding: 32px;
             max-height: 60vh;
             overflow-y: auto;
+        }
+
+        #statDetailsModal {
+            z-index: 1055;
         }
 
         /* Summary Info Improvements */
@@ -929,16 +953,16 @@ $next_date->modify('+1 month');
                 font-size: 0.65rem;
             }
 
-            .modal-content {
+            #dayModal .modal-content {
                 width: 98%;
                 margin: 2% auto;
             }
 
-            .modal-header {
+            #dayModal .modal-header {
                 padding: 16px;
             }
 
-            .modal-body {
+            #dayModal .modal-body {
                 padding: 20px;
             }
 
@@ -1019,9 +1043,12 @@ $next_date->modify('+1 month');
                                   alt="QR Code for <?php echo htmlspecialchars($current_teacher['username']); ?>"
                                  title="<?php echo htmlspecialchars($current_teacher['username']); ?> üçün QR Kod">
                         <?php else: ?>
-                            <div class="no-qr">
+                            <div class="no-qr" id="teacherQrFallback">
                                 <i class="fas fa-qrcode" style="font-size: 3rem; color: var(--gray-400);"></i>
                                 <p style="color: var(--gray-500); margin-top: 8px;">QR kod tapılmadı</p>
+                                <button type="button" class="btn btn-primary btn-sm mt-2" id="activateQrBtn">
+                                    <i class="fas fa-bolt"></i> QR Kodu Aktivləşdir
+                                </button>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -1036,31 +1063,29 @@ $next_date->modify('+1 month');
             <?php endif; ?>
 
             <!-- Statistics Overview -->
+            <?php
+                $total_scans_today = 0;
+                $unique_students_today = 0;
+                if (isset($weekly_stats[$today])) {
+                    $total_scans_today = $weekly_stats[$today]['total_scans'];
+                    $unique_students_today = $weekly_stats[$today]['unique_students'];
+                }
+                $total_week_scans = 0;
+                foreach ($weekly_stats as $day_stats) {
+                    $total_week_scans += $day_stats['total_scans'];
+                }
+            ?>
             <div class="stats-overview">
-                <div class="stat-card">
-                    <h3><?php 
-                        $total_scans_today = 0;
-                        $unique_students_today = 0;
-                        if (isset($weekly_stats[$today])) {
-                            $total_scans_today = $weekly_stats[$today]['total_scans'];
-                            $unique_students_today = $weekly_stats[$today]['unique_students'];
-                        }
-                        echo $total_scans_today;
-                    ?></h3>
+                <div class="stat-card stat-card-clickable" data-stat-type="today_scans" role="button" tabindex="0" aria-label="Bugünkü skanları göstər">
+                    <h3><?php echo $total_scans_today; ?></h3>
                     <p><i class="fas fa-qrcode"></i> Bugünkü Skanlar</p>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card stat-card-clickable" data-stat-type="today_students" role="button" tabindex="0" aria-label="Bugünkü tələbələri göstər">
                     <h3><?php echo $unique_students_today; ?></h3>
                     <p><i class="fas fa-users"></i> Bugünkü Tələbələr</p>
                 </div>
-                <div class="stat-card">
-                    <h3><?php 
-                        $total_week_scans = 0;
-                        foreach ($weekly_stats as $day_stats) {
-                            $total_week_scans += $day_stats['total_scans'];
-                        }
-                        echo $total_week_scans;
-                    ?></h3>
+                <div class="stat-card stat-card-clickable" data-stat-type="week_scans" role="button" tabindex="0" aria-label="Həftəlik skanları göstər" data-week-start="<?php echo htmlspecialchars($week_start, ENT_QUOTES, 'UTF-8'); ?>">
+                    <h3><?php echo $total_week_scans; ?></h3>
                     <p><i class="fas fa-chart-line"></i> Həftəlik Skanlar</p>
                 </div>
                 <div class="stat-card">
@@ -1178,18 +1203,11 @@ $next_date->modify('+1 month');
     </div>
 
     <!-- Scripts -->
-    <script src="../assets/libs/jquery/dist/jquery.min.js"></script>
-    <script src="../assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../dist/js/app-style-switcher.js"></script>
-    <script src="../dist/js/feather.min.js"></script>
-    <script src="../assets/libs/perfect-scrollbar/dist/perfect-scrollbar.jquery.min.js"></script>
-    <script src="../dist/js/sidebarmenu.js"></script>
-    <script src="../dist/js/custom.min.js"></script>
     
     <script>
         // Enhanced Modal functionality
         const modal = document.getElementById('dayModal');
-        const closeBtn = document.querySelector('.close');
+        const closeBtn = document.querySelector('#dayModal .close');
         const modalContent = document.getElementById('modalContent');
         
         // Add click event to all calendar day elements
@@ -1205,9 +1223,11 @@ $next_date->modify('+1 month');
         });
         
         // Close modal events
-        closeBtn.addEventListener('click', function() {
-            modal.classList.remove('show');
-        });
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                modal.classList.remove('show');
+            });
+        }
         
         window.addEventListener('click', function(event) {
             if (event.target === modal) {
@@ -1423,6 +1443,146 @@ $next_date->modify('+1 month');
                 event.preventDefault();
             }
         });
+    </script>
+
+    <div class="modal fade" id="statDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statDetailsLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <div class="table-responsive d-none" id="statDetailsContent">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="thead-light" id="statDetailsHead"></thead>
+                            <tbody id="statDetailsBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">Məlumat tapılmadı</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var qrStatTitles = {
+            today_scans: 'Bugünkü Skanlar',
+            today_students: 'Bugünkü Tələbələr',
+            week_scans: 'Həftəlik Skanlar'
+        };
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function openQrStatModal(card) {
+            var type = card.dataset.statType;
+            var modalEl = document.getElementById('statDetailsModal');
+            if (!modalEl || typeof bootstrap === 'undefined') return;
+
+            if (modalEl.parentElement !== document.body) {
+                document.body.appendChild(modalEl);
+            }
+
+            document.getElementById('statDetailsTitle').textContent = qrStatTitles[type] || 'Məlumatlar';
+            document.getElementById('statDetailsLoading').classList.remove('d-none');
+            document.getElementById('statDetailsContent').classList.add('d-none');
+            document.getElementById('statDetailsEmpty').classList.add('d-none');
+            document.getElementById('statDetailsHead').innerHTML = '';
+            document.getElementById('statDetailsBody').innerHTML = '';
+
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+            var url = 'qr_muellim/stat_operations.php?type=' + encodeURIComponent(type);
+            if (type === 'week_scans' && card.dataset.weekStart) {
+                url += '&week_start=' + encodeURIComponent(card.dataset.weekStart);
+            }
+
+            fetch(url)
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    document.getElementById('statDetailsLoading').classList.add('d-none');
+                    if (data.status !== 'success' || !data.data || !data.data.length) {
+                        document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                        return;
+                    }
+                    document.getElementById('statDetailsContent').classList.remove('d-none');
+                    var headHtml = '<tr>';
+                    data.columns.forEach(function (column) {
+                        headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+                    });
+                    headHtml += '</tr>';
+                    document.getElementById('statDetailsHead').innerHTML = headHtml;
+
+                    var bodyHtml = '';
+                    data.data.forEach(function (row) {
+                        bodyHtml += '<tr>';
+                        data.columns.forEach(function (column) {
+                            bodyHtml += '<td>' + escapeHtml(row[column.key] ?? '-') + '</td>';
+                        });
+                        bodyHtml += '</tr>';
+                    });
+                    document.getElementById('statDetailsBody').innerHTML = bodyHtml;
+                })
+                .catch(function () {
+                    document.getElementById('statDetailsLoading').classList.add('d-none');
+                    document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                });
+        }
+
+        document.querySelectorAll('.stat-card-clickable').forEach(function (card) {
+            card.addEventListener('click', function () {
+                openQrStatModal(card);
+            });
+            card.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openQrStatModal(card);
+                }
+            });
+        });
+
+        var activateQrBtn = document.getElementById('activateQrBtn');
+        if (activateQrBtn) {
+            activateQrBtn.addEventListener('click', function () {
+                activateQrBtn.disabled = true;
+                activateQrBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aktivləşdirilir...';
+
+                var formData = new FormData();
+                formData.append('csrf_token', window.APP_CSRF_TOKEN || '');
+
+                fetch('muellim/qr_activate.php', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        if (!data.success) {
+                            throw new Error(data.message || 'QR kod aktivləşdirilə bilmədi.');
+                        }
+                        window.location.reload();
+                    })
+                    .catch(function (error) {
+                        activateQrBtn.disabled = false;
+                        activateQrBtn.innerHTML = '<i class="fas fa-bolt"></i> QR Kodu Aktivləşdir';
+                        alert(error.message || 'QR kod aktivləşdirilə bilmədi.');
+                    });
+            });
+        }
+    });
     </script>
 </body>
 </html>

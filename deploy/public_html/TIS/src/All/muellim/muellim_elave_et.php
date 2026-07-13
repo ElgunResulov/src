@@ -16,64 +16,13 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
 }
 
 require_once '../db.php';
-require_once __DIR__ . '/../../../vendor/autoload.php';
-use chillerlan\QRCode\QRCode;
-use chillerlan\QRCode\QROptions;
-use chillerlan\QRCode\Output\QRGdImagePNG;
-use chillerlan\QRCode\Output\QRMarkupSVG;
+require_once __DIR__ . '/../user_credentials_helper.php';
+app_ensure_plain_password_column($conn);
+require_once __DIR__ . '/qr_helpers.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-define('MUELLIM_UPLOADS_DIR', __DIR__ . '/../../Uploads');
-define('MUELLIM_PROFILES_DIR', MUELLIM_UPLOADS_DIR . '/profiles');
-define('MUELLIM_QRCODES_DIR', MUELLIM_UPLOADS_DIR . '/qrcodes');
-
 header('Content-Type: application/json');
-
-function ensureUploadDir(string $dir): void {
-    if (!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)) {
-        throw new Exception('Qovluq yaradıla bilmədi: ' . $dir);
-    }
-    if (!is_writable($dir)) {
-        throw new Exception('Qovluq yazmağa icazəli deyil: ' . $dir);
-    }
-}
-
-function generateTeacherQrCode(string $content, string $dir): string {
-    ensureUploadDir($dir);
-
-    if (extension_loaded('gd')) {
-        $options = new QROptions([
-            'outputInterface' => QRGdImagePNG::class,
-            'outputBase64' => false,
-            'scale' => 10,
-        ]);
-        $filename = uniqid('qr_', true) . '.png';
-        $path = $dir . DIRECTORY_SEPARATOR . $filename;
-        $imageData = (new QRCode($options))->render($content);
-        if (file_put_contents($path, $imageData) === false) {
-            throw new Exception('QR kod faylı yaradıla bilmədi.');
-        }
-    } else {
-        $options = new QROptions([
-            'outputInterface' => QRMarkupSVG::class,
-            'outputBase64' => false,
-            'svgUseFillAttributes' => true,
-        ]);
-        $filename = uniqid('qr_', true) . '.svg';
-        $path = $dir . DIRECTORY_SEPARATOR . $filename;
-        $svg = (new QRCode($options))->render($content);
-        if (file_put_contents($path, $svg) === false) {
-            throw new Exception('QR kod faylı yaradıla bilmədi.');
-        }
-    }
-
-    if (!is_file($path)) {
-        throw new Exception('QR kod faylı yaradıla bilmədi.');
-    }
-
-    return $filename;
-}
 
 function generateRandomUId() {
     $length = rand(7, 8);
@@ -81,13 +30,7 @@ function generateRandomUId() {
 }
 
 function generateRandomPassword() {
-    $length = rand(7, 8);
-    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*';
-    $password = '';
-    for ($i = 0; $i < $length; $i++) {
-        $password .= $characters[rand(0, strlen($characters) - 1)];
-    }
-    return $password;
+    return app_generate_random_password(8);
 }
 
 function sendCredentialsEmail($email, $username, $password, $fullName, $u_id, $photo = '') {
@@ -382,12 +325,12 @@ $password_hash = app_hash_password($raw_password);
 mysqli_begin_transaction($conn);
 
 try {
-    $user_sql = "INSERT INTO users (u_id, username, password, role, created_at) VALUES (?, ?, ?, 'teacher', NOW())";
+    $user_sql = "INSERT INTO users (u_id, username, password, plain_password, role, created_at) VALUES (?, ?, ?, ?, 'teacher', NOW())";
     $stmt = mysqli_prepare($conn, $user_sql);
     if (!$stmt) {
         throw new Exception('İstifadəçi sorğusu hazırlanarkən xəta: ' . mysqli_error($conn));
     }
-    mysqli_stmt_bind_param($stmt, 'sss', $u_id, $username, $password_hash);
+    mysqli_stmt_bind_param($stmt, 'ssss', $u_id, $username, $password_hash, $raw_password);
     if (!mysqli_stmt_execute($stmt)) {
         throw new Exception('İstifadəçi əlavə edilməsi zamanı xəta: ' . mysqli_stmt_error($stmt));
     }
@@ -417,20 +360,17 @@ try {
     if (!mysqli_stmt_execute($stmt)) {
         throw new Exception('Müəllim əlavə edilməsi zamanı xəta: ' . mysqli_stmt_error($stmt));
     }
+    $teacher_id = (int) mysqli_insert_id($conn);
     mysqli_stmt_close($stmt);
-    
-    $qr_code_filename = generateTeacherQrCode("$u_id:$username", MUELLIM_QRCODES_DIR);
-    
-    $update_sql = "UPDATE muellimler_new SET qr_code = ? WHERE u_id = ?";
-    $stmt = mysqli_prepare($conn, $update_sql);
-    if (!$stmt) {
-        throw new Exception('QR kod yeniləmə sorğusu hazırlanarkən xəta: ' . mysqli_error($conn));
-    }
-    mysqli_stmt_bind_param($stmt, 'ss', $qr_code_filename, $u_id);
-    if (!mysqli_stmt_execute($stmt)) {
-        throw new Exception('QR kod yenilənməsi zamanı xəta: ' . mysqli_stmt_error($stmt));
-    }
-    mysqli_stmt_close($stmt);
+
+    $teacher_row = [
+        'id' => $teacher_id,
+        'u_id' => $u_id,
+        'username' => $username,
+        'qr_code' => '',
+    ];
+    $teacher_row = qr_activate_teacher($conn, $teacher_row);
+    $qr_code_filename = $teacher_row['qr_code'];
     
     // Send email with credentials
     $fullName = $ad . ' ' . $soyad;

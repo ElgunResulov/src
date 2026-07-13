@@ -497,7 +497,38 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary close-modal" data-dismiss="modal">Bağla</button>
+                <button type="button" class="btn btn-secondary close-modal" data-bs-dismiss="modal">Bağla</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stat Details Modal -->
+<div class="modal fade" id="statDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+            </div>
+            <div class="modal-body">
+                <div id="statDetailsLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Yüklənir...</span>
+                    </div>
+                </div>
+                <div class="table-responsive d-none" id="statDetailsContent">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="thead-light" id="statDetailsHead"></thead>
+                        <tbody id="statDetailsBody"></tbody>
+                    </table>
+                </div>
+                <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">
+                    Məlumat tapılmadı
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
             </div>
         </div>
     </div>

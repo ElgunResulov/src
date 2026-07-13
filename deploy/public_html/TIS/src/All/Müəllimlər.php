@@ -196,12 +196,13 @@ include('muellim/statistika.php');
                                     <th>Əlaqə</th>
                                     <th>Status</th>
                                     <th>Təcrübə</th>
+                                    <th class="text-center">QR Kod</th>
                                     <th class="text-center">Əməliyyatlar</th>
                                 </tr>
                             </thead>
                             <tbody id="teachersTableBody">
                                 <tr>
-                                    <td colspan="8" class="text-center">Yüklənir...</td> 
+                                    <td colspan="9" class="text-center">Yüklənir...</td> 
                                 </tr>
                             </tbody>
                         </table>
@@ -366,6 +367,10 @@ include('muellim/statistika.php');
                             <div class="avatar mx-auto mb-3" style="width: 120px; height: 120px;">
                                 <img id="viewTeacherImage" src="../assets/images/users/default-profile.jpg" class="rounded-circle img-fluid">
                             </div>
+                            <div class="mb-3">
+                                <img id="viewTeacherQr" src="" alt="Müəllim QR kodu" class="img-fluid border rounded" style="max-width: 140px; display: none;">
+                                <p id="viewTeacherQrEmpty" class="text-muted small mb-0" style="display: none;">QR kod hazır deyil</p>
+                            </div>
                             <h5 class="mb-1" id="viewTeacherName"></h5>
                             <p hidden class="text-muted" id="viewTeacherSubject"></p>
                             <span class="badge" id="viewTeacherStatus"></span>
@@ -477,13 +482,6 @@ include('muellim/statistika.php');
         </div>
     </div>
 
-    <script src="../assets/libs/jquery/dist/jquery.min.js"></script>
-    <script src="../assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../dist/js/app-style-switcher.js"></script>
-    <script src="../dist/js/feather.min.js"></script>
-    <script src="../assets/libs/perfect-scrollbar/dist/perfect-scrollbar.jquery.min.js"></script>
-    <script src="../dist/js/sidebarmenu.js"></script>
-    <script src="../dist/js/custom.min.js"></script>
     <script src="muellim/script.js"></script>
 </body>
 </html>

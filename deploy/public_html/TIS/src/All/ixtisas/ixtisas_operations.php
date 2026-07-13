@@ -329,6 +329,132 @@ try {
             }
             break;
             
+        case 'stat_details':
+            $type = isset($_GET['type']) ? trim($_GET['type']) : '';
+            $columns = [];
+            $rows = [];
+
+            switch ($type) {
+                case 'specialties':
+                    $query = "SELECT i.id,
+                                     i.ixtisas_adi,
+                                     i.ixtisas_kodu,
+                                     CASE
+                                         WHEN i.tehsil_seviyyesi = 'bachelor' THEN 'Bakalavr'
+                                         WHEN i.tehsil_seviyyesi = 'master' THEN 'Magistr'
+                                         WHEN i.tehsil_seviyyesi = 'phd' THEN 'Doktorantura'
+                                         ELSE 'Naməlum'
+                                     END as tehsil_seviyyesi_adi,
+                                     i.active
+                              FROM ixtisas i
+                              ORDER BY i.created_at DESC";
+                    $columns = [
+                        ['key' => 'id', 'label' => 'ID'],
+                        ['key' => 'ixtisas_adi', 'label' => 'İxtisas Adı'],
+                        ['key' => 'ixtisas_kodu', 'label' => 'Kod'],
+                        ['key' => 'tehsil_seviyyesi_adi', 'label' => 'Səviyyə'],
+                        ['key' => 'status_label', 'label' => 'Status'],
+                    ];
+                    break;
+
+                case 'students':
+                    if (!tableExists($conn, 'telebeler')) {
+                        echo json_encode(['status' => 'error', 'message' => 'Tələbələr cədvəli tapılmadı.']);
+                        exit;
+                    }
+                    $query = "SELECT id,
+                                     COALESCE(NULLIF(TRIM(reg_ad_soyad), ''), username) as ad_soyad,
+                                     ixtisas_adi,
+                                     muellim_adi,
+                                     active_status
+                              FROM telebeler
+                              ORDER BY id DESC";
+                    $columns = [
+                        ['key' => 'id', 'label' => 'ID'],
+                        ['key' => 'ad_soyad', 'label' => 'Ad Soyad'],
+                        ['key' => 'ixtisas_adi', 'label' => 'İxtisas'],
+                        ['key' => 'muellim_adi', 'label' => 'Müəllim'],
+                        ['key' => 'status_label', 'label' => 'Status'],
+                    ];
+                    break;
+
+                case 'teachers':
+                    if (!tableExists($conn, 'muellimler_new')) {
+                        echo json_encode(['status' => 'error', 'message' => 'Müəllimlər cədvəli tapılmadı.']);
+                        exit;
+                    }
+                    $query = "SELECT id,
+                                     username,
+                                     tehsil_ve_ixtisas,
+                                     fenn,
+                                     active_status
+                              FROM muellimler_new
+                              ORDER BY id DESC";
+                    $columns = [
+                        ['key' => 'id', 'label' => 'ID'],
+                        ['key' => 'username', 'label' => 'Ad'],
+                        ['key' => 'tehsil_ve_ixtisas', 'label' => 'İxtisas'],
+                        ['key' => 'fenn', 'label' => 'Fənn'],
+                        ['key' => 'status_label', 'label' => 'Status'],
+                    ];
+                    break;
+
+                case 'subjects':
+                    if (!tableExists($conn, 'fennler_new')) {
+                        echo json_encode(['status' => 'error', 'message' => 'Fənnlər cədvəli tapılmadı.']);
+                        exit;
+                    }
+                    $query = "SELECT id, fenn_adi, fenn_id, created_at
+                              FROM fennler_new
+                              ORDER BY id DESC";
+                    $columns = [
+                        ['key' => 'id', 'label' => 'ID'],
+                        ['key' => 'fenn_adi', 'label' => 'Fənn Adı'],
+                        ['key' => 'fenn_id', 'label' => 'Fənn ID'],
+                        ['key' => 'created_at', 'label' => 'Yaradılma Tarixi'],
+                    ];
+                    break;
+
+                default:
+                    echo json_encode(['status' => 'error', 'message' => 'Yanlış statistik tipi.']);
+                    exit;
+            }
+
+            $result = mysqli_query($conn, $query);
+            if (!$result) {
+                error_log("Stat details query error: " . mysqli_error($conn));
+                echo json_encode(['status' => 'error', 'message' => 'Məlumat bazası xətası: ' . mysqli_error($conn)]);
+                exit;
+            }
+
+            while ($row = mysqli_fetch_assoc($result)) {
+                if ($type === 'specialties') {
+                    $row['status_label'] = ((int) $row['active'] === 1) ? 'Aktiv' : 'Passiv';
+                } elseif ($type === 'students') {
+                    $status = strtolower((string) ($row['active_status'] ?? ''));
+                    $row['status_label'] = in_array($status, ['active', 'aktiv', '1'], true) ? 'Aktiv' : 'Passiv';
+                } elseif ($type === 'teachers') {
+                    $status = strtolower((string) ($row['active_status'] ?? ''));
+                    $row['status_label'] = ($status === 'active') ? 'Aktiv' : 'Passiv';
+                }
+
+                foreach ($row as $key => $value) {
+                    if ($value === null || $value === '') {
+                        $row[$key] = '-';
+                    }
+                }
+
+                $rows[] = $row;
+            }
+
+            echo json_encode([
+                'status' => 'success',
+                'type' => $type,
+                'columns' => $columns,
+                'data' => $rows,
+            ]);
+            break;
+
         case 'list':
             $query = "SELECT i.*, 
                       CASE 

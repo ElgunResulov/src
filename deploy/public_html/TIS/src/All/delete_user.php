@@ -3,36 +3,48 @@ include('db.php');
 app_require_auth($conn);
 app_require_role(['super_admin', 'admin']);
 
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['id'])) {
-    $user_id = intval($_POST['id']);
+header('Content-Type: application/json; charset=utf-8');
 
-    // Everyone (admin & super_admin) can now delete ANY user just by ID
-    $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
-    $stmt->bind_param("i", $user_id);
-
-    if ($stmt->execute()) {
-        if ($stmt->affected_rows > 0) {
-            // If current user deleted himself/herself → logout
-            if ($user_id === $_SESSION['user_id']) {
-                session_destroy();
-                echo "<script>window.location.href = 'Login.php';</script>";
-                exit();
-            }
-            echo "İstifadəçi uğurla silindi!";
-        } else {
-            header("HTTP/1.1 404 Not Found");
-            echo "İstifadəçi tapılmadı!";
-        }
-    } else {
-        header("HTTP/1.1 500 Internal Server Error");
-        echo "Xəta baş verdi: " . $stmt->error;
-    }
-
-    $stmt->close();
-} else {
-    header("HTTP/1.1 400 Bad Request");
-    echo "Yanlış sorğu!";
+if ($_SERVER["REQUEST_METHOD"] !== "POST" || !isset($_POST['id'])) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Yanlış sorğu!']);
+    exit;
 }
 
+$user_id = (int) $_POST['id'];
+if ($user_id <= 0) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Etibarsız istifadəçi ID.']);
+    exit;
+}
+
+$stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+$stmt->bind_param("i", $user_id);
+
+if (!$stmt->execute()) {
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'Xəta baş verdi: ' . $stmt->error]);
+    $stmt->close();
+    $conn->close();
+    exit;
+}
+
+if ($stmt->affected_rows === 0) {
+    http_response_code(404);
+    echo json_encode(['status' => 'error', 'message' => 'İstifadəçi tapılmadı!']);
+    $stmt->close();
+    $conn->close();
+    exit;
+}
+
+$stmt->close();
+
+if ($user_id === (int) ($_SESSION['user_id'] ?? 0)) {
+    session_destroy();
+    echo json_encode(['status' => 'success', 'message' => 'İstifadəçi silindi.', 'redirect' => 'Login.php']);
+    $conn->close();
+    exit;
+}
+
+echo json_encode(['status' => 'success', 'message' => 'İstifadəçi uğurla silindi!']);
 $conn->close();
-?>

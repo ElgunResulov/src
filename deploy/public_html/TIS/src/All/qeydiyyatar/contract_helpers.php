@@ -66,3 +66,63 @@ function contract_lesson_count(array $row): string {
     $count = trim((string) ($row['ders_sayi'] ?? ''));
     return $count !== '' ? $count : '8 / 16 / 24';
 }
+
+function contract_course_display(array $row): string {
+    $name = contract_course_name($row);
+    return $name !== '_________________' ? $name : '_________________________';
+}
+
+function contract_student_display(array $row): string {
+    $name = contract_student_name($row);
+    return $name !== '' && $name !== '.' ? $name : '_________________________';
+}
+
+function contract_payment_schedule(array $row): array {
+    require_once __DIR__ . '/odenis_helpers.php';
+    require_once __DIR__ . '/services_helpers.php';
+
+    $net = odenis_effective_fee(
+        (float) ($row['tehsil_haqqi'] ?? 0),
+        (float) ($row['endirim_meqdar'] ?? 0)
+    );
+
+    if ($net <= 0) {
+        return [];
+    }
+
+    return odenis_split_monthly_schedule($net);
+}
+
+/**
+ * @return array{text: string, filled: bool}
+ */
+function contract_payment_slot(array $schedule, int $index): array {
+    if (isset($schedule[$index]) && (float) $schedule[$index] > 0) {
+        return [
+            'text' => number_format((float) $schedule[$index], 2, '.', ''),
+            'filled' => true,
+        ];
+    }
+
+    return ['text' => '___________', 'filled' => false];
+}
+
+function contract_payment_amount(array $schedule, int $index): string {
+    return contract_payment_slot($schedule, $index)['text'];
+}
+
+function contract_ilkin_odenis_amount(array $row): string {
+    require_once __DIR__ . '/odenis_helpers.php';
+    return number_format(odenis_ilkin_mebleg(), 2, '.', '');
+}
+
+function contract_payment_side_label(int $index): string {
+    $labels = [
+        2 => 'III ödəniş',
+        3 => 'IV ödəniş',
+        4 => 'V ödəniş',
+        5 => 'VI ödəniş',
+    ];
+
+    return $labels[$index] ?? '';
+}

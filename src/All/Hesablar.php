@@ -55,6 +55,8 @@ $roleConfigs = [
 
 // Fetch users and organize by role
 include('db.php');
+require_once __DIR__ . '/user_credentials_helper.php';
+app_ensure_plain_password_column($conn);
 
 if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
     $role = $_SESSION['role'];
@@ -62,8 +64,8 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
     
     if ($role == 'super_admin' || $role == 'admin') {
         $sql = $role == 'super_admin' 
-            ? "SELECT id, username, password, role, company_id FROM users ORDER BY created_at DESC"
-            : "SELECT id, username, password, role FROM users WHERE company_id = ? ORDER BY created_at DESC";
+            ? "SELECT id, username, password, plain_password, role, company_id FROM users ORDER BY created_at DESC"
+            : "SELECT id, username, password, plain_password, role FROM users WHERE company_id = ? ORDER BY created_at DESC";
         
         $stmt = $conn->prepare($sql);
         
@@ -178,6 +180,7 @@ $conn->close();
             height: 100%;
             background: linear-gradient(120deg, rgba(255, 255, 255, 0.25) 0%, transparent 80%);
             transition: transform 0.6s ease;
+            pointer-events: none;
         }
 
         .main-content .card:hover::before {
@@ -241,6 +244,7 @@ $conn->close();
             bottom: 10%;
             right: 88%;
             font-size: 18px;
+            z-index: 2;
         }
 
         .delete-icon:hover {
@@ -987,6 +991,42 @@ $conn->close();
             font-weight: 500;
         }
 
+        .password-mode-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .password-mode-option {
+            flex: 1 1 180px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 14px;
+            border: 2px solid #dbe3ec;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .password-mode-option:has(input:checked) {
+            border-color: var(--primary-color);
+            background: rgba(29, 106, 157, 0.06);
+        }
+
+        .password-mode-option input {
+            margin: 0;
+        }
+
+        #manualPasswordField {
+            display: none;
+        }
+
+        #manualPasswordField.is-visible {
+            display: block;
+        }
+
         /* Responsive Design */
         @media (max-width: 1200px) {
             .main-content .card {
@@ -1274,6 +1314,15 @@ $conn->close();
     </button>
     
     <div class="main-content main">
+        <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap mb-4" style="border-radius: 14px;">
+            <div>
+                <strong><i class="fas fa-key"></i> Parol İdarəetməsi</strong>
+                <div class="small mb-0">Bütün istifadəçilər üçün şifrə yaratmaq, yeniləmək və görmək üçün mərkəzi bölmə.</div>
+            </div>
+            <a href="Parol_idareetme.php" class="btn btn-primary btn-sm mt-2 mt-md-0">
+                <i class="fas fa-external-link-alt"></i> Parol bölməsinə keç
+            </a>
+        </div>
         <?php foreach ($roleConfigs as $role => $config): ?>
             <div class="tarix_folder" data-state="down" data-role="<?php echo htmlspecialchars($role, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="header">
@@ -1319,7 +1368,7 @@ $conn->close();
                                     </p>
                                     <p>Parol: 
                                         <span id='password-text-<?php echo (int) $user['id']; ?>'>****</span>
-                                        <span id='real-password-<?php echo (int) $user['id']; ?>' style='display:none;'><?php echo htmlspecialchars($user['password'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                        <span id='real-password-<?php echo (int) $user['id']; ?>' style='display:none;'><?php echo htmlspecialchars(app_user_visible_password($user['plain_password'] ?? null, $user['password'] ?? null), ENT_QUOTES, 'UTF-8'); ?></span>
                                         <i id='toggle-password-<?php echo (int) $user['id']; ?>' class='fa fa-eye' onclick='togglePasswordVisibility(<?php echo (int) $user['id']; ?>)'></i>
                                     </p>
                                     <p>Səlahiyyət: <?php echo htmlspecialchars($user['role']); ?></p>
@@ -1399,7 +1448,24 @@ $conn->close();
 
                 <div class="password-info">
                     <i class="fas fa-key"></i>
-                    <p><strong>Qeyd:</strong> Şifrə avtomatik yaradılacaq və uğurlu əməliyyatdan sonra göstəriləcək.</p>
+                    <p><strong>Şifrə:</strong> Avtomatik yarada bilərsiniz və ya özünüz təyin edə bilərsiniz.</p>
+                </div>
+
+                <div class="password-mode-group">
+                    <label class="password-mode-option">
+                        <input type="radio" name="password_mode" value="auto" checked>
+                        <span>Avtomatik şifrə</span>
+                    </label>
+                    <label class="password-mode-option">
+                        <input type="radio" name="password_mode" value="manual">
+                        <span>Öz şifrəmi yazım</span>
+                    </label>
+                </div>
+
+                <div class="form-field" id="manualPasswordField">
+                    <input type="text" id="custom_password" name="password" minlength="6" autocomplete="new-password" placeholder=" ">
+                    <label for="custom_password">Şifrə (ən azı 6 simvol)</label>
+                    <div class="underline"></div>
                 </div>
 
                 <div class="role-group">
@@ -1461,6 +1527,40 @@ $conn->close();
         let selectedParent = null;
         let selectedParentType = null;
         let searchTimeout = null;
+
+        (function initPasswordMode() {
+            const manualField = document.getElementById('manualPasswordField');
+            const passwordInput = document.getElementById('custom_password');
+            const modeInputs = document.querySelectorAll('input[name="password_mode"]');
+            const userForm = document.getElementById('userForm');
+
+            if (!manualField || !passwordInput || !modeInputs.length) {
+                return;
+            }
+
+            function syncPasswordMode() {
+                const isManual = document.querySelector('input[name="password_mode"]:checked')?.value === 'manual';
+                manualField.classList.toggle('is-visible', isManual);
+                passwordInput.required = isManual;
+                if (!isManual) {
+                    passwordInput.value = '';
+                }
+            }
+
+            modeInputs.forEach((input) => input.addEventListener('change', syncPasswordMode));
+            syncPasswordMode();
+
+            if (userForm) {
+                userForm.addEventListener('submit', function (event) {
+                    const isManual = document.querySelector('input[name="password_mode"]:checked')?.value === 'manual';
+                    if (isManual && passwordInput.value.trim().length < 6) {
+                        event.preventDefault();
+                        alert('Şifrə ən azı 6 simvol olmalıdır.');
+                        passwordInput.focus();
+                    }
+                });
+            }
+        })();
 
         // User search functionality
         function searchUsers(input) {
@@ -1926,21 +2026,59 @@ $conn->close();
 
             const deleteIcons = document.querySelectorAll('.delete-icon');
             deleteIcons.forEach(icon => {
-                icon.addEventListener('click', function() {
+                icon.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
                     const userId = this.getAttribute('data-id');
-                    if (confirm('Bu istifadəçini silmək istədiyinizə əminsiniz?')) {
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('POST', 'delete_user.php', true);
-                        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-                        xhr.onload = function() {
-                            if (this.status === 200) {
-                                location.reload();
-                            } else {
-                                alert('Xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.');
-                            }
-                        };
-                        xhr.send('id=' + userId);
+                    if (!userId) {
+                        return;
                     }
+
+                    if (!confirm('Bu istifadəçini silmək istədiyinizə əminsiniz?')) {
+                        return;
+                    }
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', 'delete_user.php', true);
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    if (window.APP_CSRF_TOKEN) {
+                        xhr.setRequestHeader('X-CSRF-Token', window.APP_CSRF_TOKEN);
+                    }
+
+                    xhr.onload = function() {
+                        let response = null;
+                        try {
+                            response = JSON.parse(this.responseText);
+                        } catch (e) {
+                            response = null;
+                        }
+
+                        if (this.status === 200) {
+                            if (response && response.redirect) {
+                                window.location.href = response.redirect;
+                                return;
+                            }
+                            location.reload();
+                            return;
+                        }
+
+                        const message = (response && response.message)
+                            ? response.message
+                            : (this.responseText || 'Xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.');
+                        alert(message);
+                    };
+
+                    xhr.onerror = function() {
+                        alert('Şəbəkə xətası baş verdi. Zəhmət olmasa yenidən cəhd edin.');
+                    };
+
+                    const payload = 'id=' + encodeURIComponent(userId);
+                    const csrfPayload = window.APP_CSRF_TOKEN
+                        ? '&csrf_token=' + encodeURIComponent(window.APP_CSRF_TOKEN)
+                        : '';
+                    xhr.send(payload + csrfPayload);
                 });
             });
 

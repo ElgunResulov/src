@@ -139,6 +139,21 @@
             font-weight: 500;
         }
 
+        .stat-card-clickable {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card-clickable:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card-clickable:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.8);
+            outline-offset: 2px;
+        }
+
         /* Buttons */
         .btn {
             border-radius: 6px;
@@ -249,8 +264,8 @@
             font-family: Arial;
             font-weight: bold;
             border-radius:6px;
-            background-color: #28a745 !important;
-            color: white;
+            background-color: rgba(124, 135, 152, 0.14) !important;
+            color: #7c8798 !important;
         }
 
         .badge-danger {
@@ -475,7 +490,7 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Bağla</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
                     <button type="button" class="btn btn-primary" id="saveSpecialty">Yadda saxla</button>
                 </div>
             </div>
@@ -575,8 +590,39 @@
                     <p class="text-danger"><strong>Diqqət:</strong> Bu əməliyyat geri qaytarıla bilməz!</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Ləğv et</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ləğv et</button>
                     <button type="button" class="btn btn-danger" id="confirmDeleteSpecialty">Sil</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stat Details Modal -->
+    <div class="modal fade" id="statDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statDetailsLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Yüklənir...</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive d-none" id="statDetailsContent">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="thead-light" id="statDetailsHead"></thead>
+                            <tbody id="statDetailsBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">
+                        Məlumat tapılmadı
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
                 </div>
             </div>
         </div>

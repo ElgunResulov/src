@@ -182,7 +182,7 @@ if ($rooms_result && mysqli_num_rows($rooms_result) > 0) {
         <!-- Statistics Cards -->
         <div class="row">
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-primary text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-primary text-white h-100" data-stat-type="lessons" role="button" tabindex="0" aria-label="Həftəlik dərsləri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-calendar-alt fa-lg"></i>
@@ -194,7 +194,7 @@ if ($rooms_result && mysqli_num_rows($rooms_result) > 0) {
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-success text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-success text-white h-100" data-stat-type="teachers" role="button" tabindex="0" aria-label="Müəllimləri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-chalkboard-teacher fa-lg"></i>
@@ -206,7 +206,7 @@ if ($rooms_result && mysqli_num_rows($rooms_result) > 0) {
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-info text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-info text-white h-100" data-stat-type="subjects" role="button" tabindex="0" aria-label="Fənnləri göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-book fa-lg"></i>
@@ -218,7 +218,7 @@ if ($rooms_result && mysqli_num_rows($rooms_result) > 0) {
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-4">
-                <div class="card stat-card bg-warning text-white h-100">
+                <div class="card stat-card stat-card-clickable bg-warning text-white h-100" data-stat-type="rooms" role="button" tabindex="0" aria-label="Otaqları göstər">
                     <div class="card-body">
                         <div class="icon-box">
                             <i class="fas fa-door-open fa-lg"></i>
@@ -841,6 +841,37 @@ if ($rooms_result && mysqli_num_rows($rooms_result) > 0) {
         </div>
     </div>
 
+    <!-- Stat Details Modal -->
+    <div class="modal fade" id="statDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statDetailsLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Yüklənir...</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive d-none" id="statDetailsContent">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="thead-light" id="statDetailsHead"></thead>
+                            <tbody id="statDetailsBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">
+                        Məlumat tapılmadı
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="../assets/libs/jquery/dist/jquery.min.js"></script>
     <script src="../assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../dist/js/app-style-switcher.js"></script>
@@ -875,6 +906,13 @@ if ($rooms_result && mysqli_num_rows($rooms_result) > 0) {
             return date + 'T' + time;
         }
 
+        const statTitles = {
+            lessons: 'Həftəlik Dərslər',
+            teachers: 'Müəllimlər',
+            subjects: 'Fənnlər',
+            rooms: 'Otaqlar'
+        };
+
         $(document).ready(function() {
             if (getCsrfToken() && typeof $.ajaxSetup === 'function') {
                 $.ajaxSetup({
@@ -888,6 +926,17 @@ if ($rooms_result && mysqli_num_rows($rooms_result) > 0) {
 
             // Hide preloader when page is loaded
             $(".preloader").fadeOut();
+
+            $('.stat-card-clickable').on('click', function () {
+                openStatDetailsModal($(this).data('stat-type'));
+            });
+
+            $('.stat-card-clickable').on('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openStatDetailsModal($(this).data('stat-type'));
+                }
+            });
             
             // Initialize tooltips
             $('[data-toggle="tooltip"]').tooltip();
@@ -1642,6 +1691,77 @@ if ($rooms_result && mysqli_num_rows($rooms_result) > 0) {
                 }
             });
         });
+
+        function openStatDetailsModal(type) {
+            $('#statDetailsTitle').text(statTitles[type] || 'Məlumatlar');
+            $('#statDetailsLoading').removeClass('d-none');
+            $('#statDetailsContent').addClass('d-none');
+            $('#statDetailsEmpty').addClass('d-none');
+            $('#statDetailsHead').empty();
+            $('#statDetailsBody').empty();
+
+            const statModalEl = document.getElementById('statDetailsModal');
+            if (statModalEl) {
+                bootstrap.Modal.getOrCreateInstance(statModalEl).show();
+            }
+
+            $.ajax({
+                url: 'Dərs_Cədvəli/lesson_operations.php?action=stat_details&type=' + encodeURIComponent(type),
+                type: 'GET',
+                dataType: 'json',
+                success: function (response) {
+                    $('#statDetailsLoading').addClass('d-none');
+
+                    if (response.status === 'success' && response.data && response.data.length > 0) {
+                        renderStatDetailsTable(response.columns, response.data);
+                        $('#statDetailsContent').removeClass('d-none');
+                    } else if (response.status === 'success') {
+                        $('#statDetailsEmpty').removeClass('d-none');
+                    } else {
+                        alert(response.message || 'Məlumat tapılmadı');
+                        $('#statDetailsEmpty').removeClass('d-none');
+                    }
+                },
+                error: function (xhr) {
+                    $('#statDetailsLoading').addClass('d-none');
+                    $('#statDetailsEmpty').removeClass('d-none');
+                    alert('Məlumatları yükləmək mümkün olmadı: ' + xhr.status);
+                }
+            });
+        }
+
+        function renderStatDetailsTable(columns, rows) {
+            const escapeHtml = (value) => String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+
+            let headHtml = '<tr>';
+            columns.forEach(function (column) {
+                headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+            });
+            headHtml += '</tr>';
+            $('#statDetailsHead').html(headHtml);
+
+            let bodyHtml = '';
+            rows.forEach(function (row) {
+                bodyHtml += '<tr>';
+                columns.forEach(function (column) {
+                    let value = row[column.key] ?? '-';
+                    if (column.key === 'status_label') {
+                        const badgeClass = value === 'Aktiv' ? 'badge-success' : 'badge-danger';
+                        value = '<span class="badge ' + badgeClass + '">' + escapeHtml(value) + '</span>';
+                    } else {
+                        value = escapeHtml(value);
+                    }
+                    bodyHtml += '<td>' + value + '</td>';
+                });
+                bodyHtml += '</tr>';
+            });
+            $('#statDetailsBody').html(bodyHtml);
+        }
 
     </script>
 </body>

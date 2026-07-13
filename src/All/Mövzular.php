@@ -46,9 +46,12 @@ include('navbar_sidebar.php');
         .stat-info { flex:1; }
         .stat-value { font-size:1.8rem; font-weight:700; margin:0; line-height:1.2; }
         .stat-label { color:var(--secondary-color); font-size:0.9rem; }
+        .stat-card-clickable { cursor:pointer; transition:transform 0.2s ease, box-shadow 0.2s ease; }
+        .stat-card-clickable:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,0.12); }
+        .stat-card-clickable:focus { outline:2px solid var(--primary-color); outline-offset:2px; }
         .badge { display:inline-block; padding:3px 8px; font-size:0.75rem; font-weight:500; border-radius:20px; }
         .badge-primary { background-color:rgba(29,106,157,0.1); color:var(--primary-color); }
-        .badge-success { background-color:rgba(40,167,69,0.1); color:var(--success-color); }
+        .badge-success { background-color:rgba(124, 135, 152, 0.14); color:#7c8798; }
         .badge-warning { background-color:rgba(255,193,7,0.1); color:var(--warning-color); }
         .badge-danger { background-color:rgba(220,53,69,0.1); color:var(--danger-color); }
         .badge-info { background-color:rgba(23,162,184,0.1); color:var(--info-color); }
@@ -216,20 +219,6 @@ include('navbar_sidebar.php');
             <?php include('movzular/suallar/modals.php'); ?>
         </div>
     </div>
-    <script src="../assets/libs/jquery/dist/jquery.min.js"></script>
-    <script src="../assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../dist/js/app-style-switcher.js"></script>
-    <script src="../dist/js/feather.min.js"></script>
-    <script src="../assets/libs/perfect-scrollbar/dist/perfect-scrollbar.jquery.min.js"></script>
-    <script src="../dist/js/sidebarmenu.js"></script>
-    <script src="../dist/js/custom.min.js"></script>
-    <script src="../assets/extra-libs/c3/d3.min.js"></script>
-    <script src="../assets/extra-libs/c3/c3.min.js"></script>
-    <script src="../assets/libs/chartist/dist/chartist.min.js"></script>
-    <script src="../assets/libs/chartist-plugin-tooltips/dist/chartist-plugin-tooltip.min.js"></script>
-    <script src="../assets/extra-libs/jvector/jquery-jvectormap-2.0.2.min.js"></script>
-    <script src="../assets/extra-libs/jvector/jquery-jvectormap-world-mill-en.js"></script>
-    <script src="../dist/js/pages/dashboards/dashboard1.min.js"></script>
     <script src="movzular/script.js"></script>
     <script>         
         const styles = `
@@ -1346,6 +1335,104 @@ include('navbar_sidebar.php');
                 overlay.remove();
             }
         }
+
+        (function () {
+            var movzuStatTitles = {
+                students: 'Tələbələr',
+                groups: 'Qruplar',
+                topics: 'Mövzular',
+                exams: 'İmtahanlar'
+            };
+
+            function escapeHtml(text) {
+                var div = document.createElement('div');
+                div.textContent = text == null ? '' : String(text);
+                return div.innerHTML;
+            }
+
+            function openMovzuStatModal(type) {
+                var modalEl = document.getElementById('statDetailsModal');
+                if (!modalEl || typeof bootstrap === 'undefined') return;
+
+                document.getElementById('statDetailsTitle').textContent = movzuStatTitles[type] || 'Məlumatlar';
+                document.getElementById('statDetailsLoading').classList.remove('d-none');
+                document.getElementById('statDetailsContent').classList.add('d-none');
+                document.getElementById('statDetailsEmpty').classList.add('d-none');
+                document.getElementById('statDetailsHead').innerHTML = '';
+                document.getElementById('statDetailsBody').innerHTML = '';
+
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+                fetch('movzular/idare_panel/stat_operations.php?type=' + encodeURIComponent(type))
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        document.getElementById('statDetailsLoading').classList.add('d-none');
+                        if (data.status !== 'success' || !data.data || !data.data.length) {
+                            document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                            return;
+                        }
+                        document.getElementById('statDetailsContent').classList.remove('d-none');
+                        var headHtml = '<tr>';
+                        data.columns.forEach(function (column) {
+                            headHtml += '<th>' + escapeHtml(column.label) + '</th>';
+                        });
+                        headHtml += '</tr>';
+                        document.getElementById('statDetailsHead').innerHTML = headHtml;
+
+                        var bodyHtml = '';
+                        data.data.forEach(function (row) {
+                            bodyHtml += '<tr>';
+                            data.columns.forEach(function (column) {
+                                bodyHtml += '<td>' + escapeHtml(row[column.key] ?? '-') + '</td>';
+                            });
+                            bodyHtml += '</tr>';
+                        });
+                        document.getElementById('statDetailsBody').innerHTML = bodyHtml;
+                    })
+                    .catch(function () {
+                        document.getElementById('statDetailsLoading').classList.add('d-none');
+                        document.getElementById('statDetailsEmpty').classList.remove('d-none');
+                    });
+            }
+
+            document.querySelectorAll('#dashboard .stat-card-clickable').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    openMovzuStatModal(card.dataset.statType);
+                });
+                card.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openMovzuStatModal(card.dataset.statType);
+                    }
+                });
+            });
+        })();
     </script>
+
+    <div class="modal fade" id="statDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statDetailsTitle">Məlumatlar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bağla"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statDetailsLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <div class="table-responsive d-none" id="statDetailsContent">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="thead-light" id="statDetailsHead"></thead>
+                            <tbody id="statDetailsBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="statDetailsEmpty" class="text-center py-4 text-muted d-none">Məlumat tapılmadı</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bağla</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

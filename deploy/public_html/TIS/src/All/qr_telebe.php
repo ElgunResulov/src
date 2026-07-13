@@ -14,43 +14,61 @@ include('db.php');
 
 // Session check function
 function checkSession($conn) {
-    // Check if session exists and username is set
-    if (!isset($_SESSION['username']) || empty($_SESSION['username'])) {
+    if (!isset($_SESSION['u_id']) || empty($_SESSION['u_id'])) {
         throw new Exception('İstifadəçi daxil olmayıb.');
     }
-    
-    // Sanitize username
-    $student_username = mysqli_real_escape_string($conn, $_SESSION['username']);
-    
-    // Verify user exists and is active
-    $sql = "SELECT u_id FROM telebeler WHERE username = ? AND active_status = 'active'";
+
+    $student_u_id = mysqli_real_escape_string($conn, $_SESSION['u_id']);
+
+    $sql = "SELECT u_id, username FROM telebeler WHERE u_id = ? AND active_status = 'active'";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         throw new Exception('Verilənlər bazası xətası: ' . $conn->error);
     }
-    
-    $stmt->bind_param("s", $student_username);
+
+    $stmt->bind_param("s", $student_u_id);
     $stmt->execute();
     $result = $stmt->get_result();
-    
+
     if ($result->num_rows === 0) {
         $stmt->close();
         throw new Exception('Tələbə məlumatları tapılmadı və ya hesab aktiv deyil.');
     }
-    
+
     $student_info = $result->fetch_assoc();
     $stmt->close();
-    
+
     $timeout_duration = 1800;
     if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > $timeout_duration)) {
         session_unset();
         session_destroy();
         throw new Exception('Sessiya vaxtı bitdi. Zəhmət olmasa yenidən daxil olun.');
     }
-    
+
     $_SESSION['last_activity'] = time();
-    
+    $_SESSION['student_display_username'] = $student_info['username'];
+
     return $student_info['u_id'];
+}
+
+function getStudentDisplayUsername($conn, $student_u_id) {
+    if (!empty($_SESSION['student_display_username'])) {
+        return $_SESSION['student_display_username'];
+    }
+
+    $sql = "SELECT username FROM telebeler WHERE u_id = ? LIMIT 1";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return $_SESSION['username'] ?? '';
+    }
+
+    $stmt->bind_param("s", $student_u_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    return $row['username'] ?? ($_SESSION['username'] ?? '');
 }
 
 // Function to get total required lessons from qeydiyyatar table
@@ -570,12 +588,24 @@ try {
     <p style="position:relative; display: flex; justify-content: center; align-items: center; margin: 65% 15%; font-family: Arial; font-weight:bold;font-size:18px; text-align: center;">Sessiya vaxtı bitdi. Zəhmət olmasa yenidən daxil olun.</p>';
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['qr_data'])) {
+    if (!$session_valid) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(401);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Sessiya vaxtı bitdi. Zəhmət olmasa yenidən daxil olun.'
+        ]);
+        exit;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['qr_data']) && $session_valid) {
     $qr_data = trim($_POST['qr_data']);
     
     try {
         $student_u_id = checkSession($conn);
-        $student_username = mysqli_real_escape_string($conn, $_SESSION['username']);
+        $student_username = mysqli_real_escape_string($conn, getStudentDisplayUsername($conn, $student_u_id));
         
         $u_id = null;
         $teacher_username = null;
@@ -645,10 +675,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['qr_data']) && $sessio
         // Insert new scan with u_id
         $scan_time = date('Y-m-d H:i:s');
         $new_lesson_count = $current_lessons + 1; // This will be the new total after insertion
-        $sql = "INSERT INTO qr_scans (u_id, teacher_id, teacher_username, teacher_fenn, student_username, student_u_id, scan_date, scan_time, lesson_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $company_id = (int) ($_SESSION['company_id'] ?? 0);
+        $sql = "INSERT INTO qr_scans (u_id, company_id, teacher_id, teacher_username, teacher_fenn, student_username, student_u_id, scan_date, scan_time, lesson_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
         $teacher_fenn = $teacher_info['tehsil_ve_ixtisas'] ?? 'Fənn yoxdur';
-        $stmt->bind_param("sissssssi", $student_u_id, $teacher_info['id'], $teacher_info['username'], $teacher_fenn, $student_username, $student_u_id, $today, $scan_time, $new_lesson_count);
+        $stmt->bind_param("siissssssi", $student_u_id, $company_id, $teacher_info['id'], $teacher_info['username'], $teacher_fenn, $student_username, $student_u_id, $today, $scan_time, $new_lesson_count);
         
         if ($stmt->execute()) {
             $remaining_lessons = $total_required_lessons - $new_lesson_count;
@@ -743,7 +774,7 @@ $scan_history = [];
 if ($session_valid) {
     try {
         $student_u_id = checkSession($conn);
-        $student_username = mysqli_real_escape_string($conn, $_SESSION['username']);
+        $student_username = mysqli_real_escape_string($conn, getStudentDisplayUsername($conn, $student_u_id));
         
         $history_sql = "SELECT qs.*,
                         (SELECT COUNT(*) FROM qr_scans qs2 WHERE qs2.teacher_username = qs.teacher_username AND qs2.student_username = qs.student_username) as completed_lessons
@@ -778,7 +809,10 @@ if ($session_valid) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Skan - TIS</title>
-    <script src="https://unpkg.com/@zxing/library@0.20.0"></script>
+    <script>
+        window.APP_CSRF_TOKEN = <?php echo json_encode(app_csrf_token(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+    </script>
+    <script src="../assets/libs/zxing/index.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="../assets/libs/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet"> 
       <style>
@@ -1002,7 +1036,7 @@ if ($session_valid) {
             <div class="info">
                 <h4><i class="fas fa-info-circle"></i> Necə istifadə etmək:</h4>
                 <ul>
-                    <li><strong>Kameranı Başlat</strong> düyməsini basın</li>
+                    <li><strong>Kameranı Başlat</strong> düyməsini basın və brauzer kamera icazəsi istəyəndə <strong>İcazə ver</strong> seçin</li>
                     <li>Müəllimin QR kodunu kameraya tutun</li>
                     <li>QR kod tanınacaq və müəllim məlumatları ilə təsdiq pəncərəsi açılacaq</li>
                     <li>Təsdiq etdikdən sonra dərs qeydiyyatı tamamlanacaq</li>
@@ -1089,6 +1123,7 @@ if ($session_valid) {
             
             <form method="POST" id="scanForm" class="hidden">
                 <input type="hidden" name="qr_data" id="qrDataInput">
+                <?= app_csrf_field() ?>
             </form>
 
             <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
@@ -1121,85 +1156,186 @@ if ($session_valid) {
         let codeReader = null;
         let isScanning = false;
         let currentQrData = '';
+        let cameraErrorShown = false;
+
+        function getCameraErrorMessage(error) {
+            const name = (error && error.name) ? error.name : '';
+            const message = (error && error.message) ? error.message : '';
+            const combined = (name + ' ' + message).toLowerCase();
+
+            if (combined.includes('permission') || combined.includes('notallowed') || combined.includes('denied')) {
+                return 'Kamera icazəsi verilməyib. Ünvan çubuğundakı kamera ikonuna basıb "İcazə ver" seçin və səhifəni yeniləyin.';
+            }
+            if (combined.includes('notfound') || combined.includes('devicesnotfound')) {
+                return 'Kamera tapılmadı. Cihazınızda aktiv kamera olduğundan əmin olun.';
+            }
+            if (combined.includes('notreadable') || combined.includes('in use') || combined.includes('inuse')) {
+                return 'Kamera başqa proqram tərəfindən istifadə olunur. Digər tətbiqləri bağlayıb yenidən cəhd edin.';
+            }
+            if (!window.isSecureContext && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+                return 'Kamera yalnız HTTPS və ya localhost üzərində işləyir.';
+            }
+
+            return message || 'Kamera açıla bilmədi.';
+        }
+
+        function showCameraError(error) {
+            if (cameraErrorShown) {
+                return;
+            }
+            cameraErrorShown = true;
+            alert('❌ Kamera xətası: ' + getCameraErrorMessage(error));
+            setTimeout(function () {
+                cameraErrorShown = false;
+            }, 2500);
+        }
+
+        async function ensureCameraAccess() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Brauzeriniz kamera dəstəkləmir.');
+            }
+
+            const constraints = {
+                video: {
+                    facingMode: { ideal: 'environment' }
+                },
+                audio: false
+            };
+
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (firstError) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                } catch (secondError) {
+                    throw firstError;
+                }
+            }
+
+            if (stream) {
+                stream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+            }
+        }
+
+        function buildQrRequestBody(qrData, validateOnly) {
+            const params = new URLSearchParams();
+            params.append('qr_data', qrData);
+            if (validateOnly) {
+                params.append('validate_only', '1');
+            }
+            if (window.APP_CSRF_TOKEN) {
+                params.append('csrf_token', window.APP_CSRF_TOKEN);
+            }
+            return params.toString();
+        }
+
+        function parseJsonResponse(response) {
+            return response.text().then(function (text) {
+                if (!text) {
+                    throw new Error('Server boş cavab qaytardı.');
+                }
+
+                try {
+                    return JSON.parse(text);
+                } catch (error) {
+                    const plainText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                    throw new Error(plainText || 'Server cavabı oxunmadı.');
+                }
+            });
+        }
+
+        function submitQrValidation(qrData) {
+            return fetch('', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: buildQrRequestBody(qrData, true)
+            }).then(parseJsonResponse);
+        }
 
         async function startCamera() {
             if (isScanning) return;
-            
+
+            if (typeof ZXing === 'undefined' || !ZXing.BrowserMultiFormatReader) {
+                alert('❌ QR skan kitabxanası yüklənmədi. Səhifəni yeniləyin.');
+                return;
+            }
+
+            const videoElement = document.getElementById('video');
+            const statusElement = document.getElementById('status');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+
             try {
+                statusElement.classList.remove('hidden');
+                statusElement.innerHTML = '<i class="fas fa-camera"></i> Kamera icazəsi yoxlanılır...';
+
+                await ensureCameraAccess();
+
                 isScanning = true;
-                console.log('Camera starting...');
-                
                 codeReader = new ZXing.BrowserMultiFormatReader();
-                
-                const videoElement = document.getElementById('video');
-                const statusElement = document.getElementById('status');
-                const startBtn = document.getElementById('startBtn');
-                const stopBtn = document.getElementById('stopBtn');
-                
-                // Show camera controls
+
                 startBtn.classList.add('hidden');
                 stopBtn.classList.remove('hidden');
                 videoElement.classList.remove('hidden');
-                statusElement.classList.remove('hidden');
                 statusElement.innerHTML = '<i class="fas fa-search"></i> QR kod axtarılır...';
-                
-                // Start scanning
-                await codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
+
+                await codeReader.decodeFromVideoDevice(null, 'video', function (result, err) {
                     if (result) {
                         console.log('QR detected:', result.text);
                         currentQrData = result.text.trim();
-                        
-                        // Stop camera immediately
                         stopCamera();
-                        
-                        // Show processing message
+
                         statusElement.classList.remove('hidden');
                         statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> QR kod yoxlanılır...';
-                        
-                        // Validate with server
-                        fetch('', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                            },
-                            body: 'qr_data=' + encodeURIComponent(currentQrData) + '&validate_only=1'
-                        })
-                        .then(response => response.json())
-                        .then(data => {
+
+                        submitQrValidation(currentQrData)
+                        .then(function (data) {
                             console.log('Response:', data);
                             statusElement.classList.add('hidden');
-                            
-                        if (data.success) {
-                            const info = data.teacher_info;
-                            const teacherName = info.username;
-                            
-                            // Populate and show modal
-                            document.getElementById('modalUId').textContent = info.u_id;
-                            document.getElementById('modalUsername').textContent = teacherName;
-                            document.getElementById('modalFenn').textContent = info.fenn;
-                            document.getElementById('modalCurrentLessons').textContent = info.current_lessons;
-                            new bootstrap.Modal(document.getElementById('confirmModal')).show();
-                        } else {
-                                alert(`❌ Xəta: ${data.message}\n\n📱 QR Kod: ${currentQrData.substring(0, 50)}...`);
+
+                            if (data.success) {
+                                const info = data.teacher_info;
+                                document.getElementById('modalUId').textContent = info.u_id;
+                                document.getElementById('modalUsername').textContent = info.username;
+                                document.getElementById('modalFenn').textContent = info.fenn;
+                                document.getElementById('modalCurrentLessons').textContent = info.current_lessons;
+                                new bootstrap.Modal(document.getElementById('confirmModal')).show();
+                            } else {
+                                alert('❌ Xəta: ' + (data.message || 'Naməlum xəta') + '\n\n📱 QR Kod: ' + currentQrData.substring(0, 50) + '...');
                             }
                         })
-                        .catch(error => {
+                        .catch(function (error) {
                             console.error('Error:', error);
                             statusElement.classList.add('hidden');
-                            alert(`❌ Şəbəkə xətası: ${error.message}\n\n📱 QR Kod: ${currentQrData.substring(0, 50)}...`);
+                            alert('❌ Şəbəkə xətası: ' + error.message + '\n\n📱 QR Kod: ' + currentQrData.substring(0, 50) + '...');
                         });
+                        return;
                     }
-                    
-                    if (err && !(err instanceof ZXing.NotFoundException)) {
-                        console.error('Scan error:', err);
-                        alert(`❌ Skan xətası: ${err.message}`);
+
+                    if (!err) {
+                        return;
+                    }
+
+                    if (err instanceof ZXing.NotFoundException) {
+                        return;
+                    }
+
+                    const errText = ((err.name || '') + ' ' + (err.message || '')).toLowerCase();
+                    if (errText.includes('permission') || errText.includes('notallowed') || errText.includes('denied')) {
+                        showCameraError(err);
                         stopCamera();
                     }
                 });
-                
             } catch (error) {
                 console.error('Camera error:', error);
-                alert(`❌ Kamera xətası: ${error.message}`);
+                showCameraError(error);
                 stopCamera();
             }
         }
