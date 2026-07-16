@@ -260,11 +260,26 @@ include('muellim/statistika.php');
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
+                                <label for="fin_kod">FIN kod</label>
+                                <input type="text" class="form-control" id="fin_kod" name="fin_kod"
+                                       required maxlength="7" minlength="7" autocomplete="off"
+                                       style="text-transform: uppercase;"
+                                       placeholder="7 simvol (A-Z, 0-9)"
+                                       pattern="[A-Za-z0-9]{7}">
+                                <small class="form-text text-muted">Giriş adı = FIN · Şifrə = FIN + 5 (Ad/Soyad siyahıda qalır)</small>
+                                <div class="invalid-feedback">FIN kod 7 simvol olmalıdır (A-Z, 0-9)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
                                 <label for="email">Email</label>
                                 <input type="email" class="form-control" id="email" name="email" required>
                                 <div class="invalid-feedback">Düzgün email daxil edin</div>
                             </div>
                         </div>
+                    </div>
+                    <br>
+                    <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="telefon">Telefon</label>
@@ -482,6 +497,13 @@ include('muellim/statistika.php');
         </div>
     </div>
 
+    <script src="../assets/libs/jquery/dist/jquery.min.js"></script>
+    <script src="../assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../dist/js/app-style-switcher.js"></script>
+    <script src="../dist/js/feather.min.js"></script>
+    <script src="../assets/libs/perfect-scrollbar/dist/perfect-scrollbar.jquery.min.js"></script>
+    <script src="../dist/js/sidebarmenu.js"></script>
+    <script src="../dist/js/custom.min.js"></script>
     <script src="muellim/script.js"></script>
 </body>
 </html>

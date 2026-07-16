@@ -267,7 +267,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $fenn_null = 'null';
 $ad = isset($_POST['ad']) ? trim($_POST['ad']) : '';
 $soyad = isset($_POST['soyad']) ? trim($_POST['soyad']) : '';
-$username = $ad . '.' . $soyad; 
+$fin_kod = isset($_POST['fin_kod']) ? app_normalize_fin_kod((string) $_POST['fin_kod']) : '';
+$username = $ad . '.' . $soyad; // Siyahıda / sistemdə göstərilən ad
+$loginUsername = $fin_kod; // users.username — FIN ilə giriş
 $fenn = $fenn_null;
 $active_status = isset($_POST['active_status']) ? trim($_POST['active_status']) : 'active';
 $email = isset($_POST['email']) ? trim($_POST['email']) : '';
@@ -277,13 +279,56 @@ $ise_baslama_tarixi = isset($_POST['ise_baslama_tarixi']) ? trim($_POST['ise_bas
 $unvan = isset($_POST['unvan']) ? trim($_POST['unvan']) : null;
 $tehsil_ve_ixtisas = isset($_POST['class']) ? trim($_POST['class']) : '';
 
-if (empty($ad) || empty($soyad) || empty($email) || empty($tehsil_ve_ixtisas)) {
+if (empty($ad) || empty($soyad) || empty($fin_kod) || empty($email) || empty($tehsil_ve_ixtisas)) {
     echo json_encode([
         'success' => false,
-        'message' => 'Zəhmət olmasa bütün vacib xanaları doldurun (Ad, Soyad, Email, Təhsil və İxtisas).'
+        'message' => 'Zəhmət olmasa bütün vacib xanaları doldurun (Ad, Soyad, FIN kod, Email, Təhsil və İxtisas).'
     ]);
     ob_end_flush();
     exit;
+}
+
+if (!app_is_valid_fin_kod($fin_kod)) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'FIN kod 7 simvol olmalıdır (yalnız A-Z və 0-9).'
+    ]);
+    ob_end_flush();
+    exit;
+}
+
+$dup_stmt = mysqli_prepare($conn, 'SELECT id FROM users WHERE username = ? LIMIT 1');
+if ($dup_stmt) {
+    mysqli_stmt_bind_param($dup_stmt, 's', $loginUsername);
+    mysqli_stmt_execute($dup_stmt);
+    $dup_result = mysqli_stmt_get_result($dup_stmt);
+    if ($dup_result && mysqli_num_rows($dup_result) > 0) {
+        mysqli_stmt_close($dup_stmt);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Bu FIN kod artıq istifadə olunur.'
+        ]);
+        ob_end_flush();
+        exit;
+    }
+    mysqli_stmt_close($dup_stmt);
+}
+
+$name_dup = mysqli_prepare($conn, 'SELECT id FROM muellimler_new WHERE username = ? LIMIT 1');
+if ($name_dup) {
+    mysqli_stmt_bind_param($name_dup, 's', $username);
+    mysqli_stmt_execute($name_dup);
+    $name_result = mysqli_stmt_get_result($name_dup);
+    if ($name_result && mysqli_num_rows($name_result) > 0) {
+        mysqli_stmt_close($name_dup);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Bu Ad.Soyad artıq mövcuddur.'
+        ]);
+        ob_end_flush();
+        exit;
+    }
+    mysqli_stmt_close($name_dup);
 }
 
 $profile_image = null;
@@ -320,7 +365,7 @@ if (isset($_FILES['profileImage']) && $_FILES['profileImage']['error'] === UPLOA
 }
 
 $u_id = generateRandomUId();
-$raw_password = generateRandomPassword();
+$raw_password = $fin_kod . '5';
 $password_hash = app_hash_password($raw_password);
 mysqli_begin_transaction($conn);
 
@@ -330,7 +375,7 @@ try {
     if (!$stmt) {
         throw new Exception('İstifadəçi sorğusu hazırlanarkən xəta: ' . mysqli_error($conn));
     }
-    mysqli_stmt_bind_param($stmt, 'ssss', $u_id, $username, $password_hash, $raw_password);
+    mysqli_stmt_bind_param($stmt, 'ssss', $u_id, $loginUsername, $password_hash, $raw_password);
     if (!mysqli_stmt_execute($stmt)) {
         throw new Exception('İstifadəçi əlavə edilməsi zamanı xəta: ' . mysqli_stmt_error($stmt));
     }
@@ -374,15 +419,19 @@ try {
     
     // Send email with credentials
     $fullName = $ad . ' ' . $soyad;
-    $email_sent = sendCredentialsEmail($email, $username, $raw_password, $fullName, $u_id, $profile_image);
+    $email_sent = sendCredentialsEmail($email, $loginUsername, $raw_password, $fullName, $u_id, $profile_image);
     
     mysqli_commit($conn);
     
     echo json_encode([
         'success' => true,
-        'message' => 'Müəllim və QR kod uğurla əlavə edildi.' . ($email_sent ? ' E-poçt göndərildi.' : ' E-poçt göndərilmədi.'),
+        'message' => 'Müəllim və QR kod uğurla əlavə edildi.'
+            . ' FIN/Giriş: ' . $loginUsername
+            . ' · Şifrə: ' . $raw_password
+            . ($email_sent ? ' E-poçt göndərildi.' : ' E-poçt göndərilmədi.'),
         'u_id' => $u_id,
         'username' => $username,
+        'fin_kod' => $loginUsername,
         'password' => $raw_password,
         'qr_code' => $qr_code_filename
     ]);

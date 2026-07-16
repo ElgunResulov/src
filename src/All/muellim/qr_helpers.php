@@ -10,7 +10,25 @@ use chillerlan\QRCode\Output\QRMarkupSVG;
 define('MUELLIM_UPLOADS_DIR', __DIR__ . '/../../Uploads');
 define('MUELLIM_PROFILES_DIR', MUELLIM_UPLOADS_DIR . '/profiles');
 define('MUELLIM_QRCODES_DIR', MUELLIM_UPLOADS_DIR . '/qrcodes');
+/** Relative URL from /All/ pages */
 define('MUELLIM_QRCODES_URL', '../Uploads/qrcodes/');
+/** Relative URL from /All/qr_muellim/ (and similar) pages */
+define('MUELLIM_QRCODES_URL_SUB', '../../Uploads/qrcodes/');
+
+/**
+ * QR şəkilinin web URL-i.
+ * @param string $from 'all' = /All/, 'sub' = /All/alt_qovluq/
+ */
+function muellim_qr_web_url(string $filename, string $from = 'all'): string
+{
+    $filename = ltrim(trim($filename), '/');
+    if ($filename === '') {
+        return '';
+    }
+    $base = $from === 'sub' ? MUELLIM_QRCODES_URL_SUB : MUELLIM_QRCODES_URL;
+
+    return $base . $filename;
+}
 
 function qr_ensure_upload_dir(string $dir): void
 {
@@ -220,7 +238,7 @@ function qr_teacher_public_meta(array $teacher): array
 
     return [
         'qr_code' => $filename,
-        'qr_url' => $hasFile ? MUELLIM_QRCODES_URL . $filename : '',
+        'qr_url' => $hasFile ? muellim_qr_web_url($filename, 'all') : '',
         'qr_content' => qr_teacher_content($teacher),
         'qr_ready' => $hasFile,
     ];

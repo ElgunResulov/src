@@ -39,18 +39,19 @@ $types = '';
 $params = [];
 if (!empty($search)) {
     $searchLike = '%' . $search . '%';
-    $where_conditions[] = "(username LIKE ? OR email LIKE ?)";
-    $types .= 'ss';
+    $where_conditions[] = "(m.username LIKE ? OR m.email LIKE ? OR u.username LIKE ?)";
+    $types .= 'sss';
+    $params[] = $searchLike;
     $params[] = $searchLike;
     $params[] = $searchLike;
 }
 if (!empty($fenn)) {
-    $where_conditions[] = "fenn = ?";
+    $where_conditions[] = "m.fenn = ?";
     $types .= 's';
     $params[] = $fenn;
 }
 if (!empty($status)) {
-    $where_conditions[] = "active_status = ?";
+    $where_conditions[] = "m.active_status = ?";
     $types .= 's';
     $params[] = $status;
 }
@@ -58,7 +59,10 @@ if (!empty($status)) {
 $where_clause = !empty($where_conditions) ? "WHERE " . implode(" AND ", $where_conditions) : "";
 
 // Count total records
-$count_sql = "SELECT COUNT(*) as total FROM muellimler_new $where_clause";
+$count_sql = "SELECT COUNT(*) as total
+              FROM muellimler_new m
+              LEFT JOIN users u ON u.u_id = m.u_id
+              $where_clause";
 $count_stmt = $conn->prepare($count_sql);
 if ($types !== '') {
     $count_stmt->bind_param($types, ...$params);
@@ -73,7 +77,12 @@ if ($count_result) {
 }
 
 // Get the data
-$sql = "SELECT id, u_id, username, fenn, active_status, email, telefon, tecrube, ise_baslama_tarixi, unvan, tehsil_ve_ixtisas, profile, qr_code, created_at FROM muellimler_new $where_clause ORDER BY id DESC LIMIT ?, ?";
+$sql = "SELECT m.id, m.u_id, m.username, m.fenn, m.active_status, m.email, m.telefon, m.tecrube, m.ise_baslama_tarixi, m.unvan, m.tehsil_ve_ixtisas, m.profile, m.qr_code, m.created_at,
+               u.username AS fin_kod
+        FROM muellimler_new m
+        LEFT JOIN users u ON u.u_id = m.u_id
+        $where_clause
+        ORDER BY m.id DESC LIMIT ?, ?";
 $dataTypes = $types . 'ii';
 $dataParams = array_merge($params, [$offset, $limit]);
 $stmt = $conn->prepare($sql);
@@ -90,6 +99,9 @@ if ($result) {
             // QR yaradıla bilməsə də siyahıda göstər
         }
         $row = array_merge($row, qr_teacher_public_meta($row));
+        if (empty($row['fin_kod']) && app_is_valid_fin_kod((string) ($row['username'] ?? ''))) {
+            $row['fin_kod'] = strtoupper((string) $row['username']);
+        }
         $teachers[] = $row;
     }
     

@@ -11,6 +11,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 date_default_timezone_set('Asia/Baku');
 include('db.php');
+require_once __DIR__ . '/muellim/attendance_helpers.php';
 
 // Session check function
 function checkSession($conn) {
@@ -638,6 +639,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['qr_data']) && $sessio
         if (isset($_POST['validate_only'])) {
             // Get current lesson count from qr_scans table
             $lesson_data = getCurrentLessonCount($conn, $teacher_info['username'], $student_username);
+            $weekGate = att_week_scan_gate($conn, $teacher_info['username'], $student_username, date('Y-m-d'));
             
             header('Content-Type: application/json');
             echo json_encode([
@@ -647,7 +649,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['qr_data']) && $sessio
                     'username' => $teacher_info['username'],
                     'fenn' => $teacher_info['tehsil_ve_ixtisas'] ?? 'Fənn yoxdur',
                     'qr_code' => $teacher_info['qr_code'] ? '../Uploads/qrcodes/' . $teacher_info['qr_code'] : '',
-                    'current_lessons' => $lesson_data['current_count']
+                    'current_lessons' => $lesson_data['current_count'],
+                    'week_scans' => $weekGate['count'],
+                    'week_max' => $weekGate['max'],
+                    'week_remaining' => max(0, $weekGate['max'] - $weekGate['count']),
                 ]
             ]);
             exit;
@@ -664,6 +669,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['qr_data']) && $sessio
             throw new Exception('Bu müəllimlə bu gün artıq dərs qeydiyyatı var.');
         }
         $stmt->close();
+
+        // Həftədə maksimum 2 skan (müəllim–tələbə)
+        $weekGate = att_week_scan_gate($conn, $teacher_info['username'], $student_username, $today);
+        if (!$weekGate['allowed']) {
+            throw new Exception($weekGate['message']);
+        }
         
         // Get current lesson count from qr_scans table
         $lesson_data = getCurrentLessonCount($conn, $teacher_info['username'], $student_username);
@@ -737,9 +748,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['qr_data']) && $sessio
             }
             $student_stmt->close();
             
+            $cycle = att_cycle_from_count($new_lesson_count);
+            $progressMessage = att_progress_message($student_username, $new_lesson_count);
+
             $scan_result = [
                 'success' => true,
-                'message' => 'Dərs uğurla qeydiyyat edildi!',
+                'message' => 'Dərs uğurla qeydiyyat edildi! ' . $progressMessage,
                 'u_id' => $teacher_info['u_id'],
                 'username' => $teacher_info['username'],
                 'tehsil_ve_ixtisas' => $teacher_info['tehsil_ve_ixtisas'] ?? 'Fənn yoxdur',
@@ -747,7 +761,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['qr_data']) && $sessio
                 'total_scans' => $new_lesson_count,
                 'scan_time' => date('d.m.Y H:i', strtotime($scan_time)),
                 'remaining_lessons' => max(0, $remaining_lessons),
-                'total_required_lessons' => $total_required_lessons
+                'total_required_lessons' => $total_required_lessons,
+                'cycle_current' => $cycle['current'],
+                'cycle_size' => $cycle['cycle_size'],
+                'cycle_label' => $cycle['label'],
+                'cycle_units' => $cycle['completed_units'],
+                'cycle_complete' => $cycle['is_cycle_complete'],
+                'progress_message' => $progressMessage,
             ];
         } else {
             throw new Exception('Qeydiyyat xətası: ' . $stmt->error);
@@ -1075,7 +1095,16 @@ if ($session_valid) {
                     <div class="badge">
                         <i class="fas fa-graduation-cap"></i>
                         Gəldiyi Dərs: <?= $scan_result['total_scans'] ?>
+                        <?php if (!empty($scan_result['cycle_label'])): ?>
+                            · 8-lik: <?= htmlspecialchars($scan_result['cycle_label']) ?>
+                        <?php endif; ?>
                     </div>
+                    <?php if (!empty($scan_result['progress_message'])): ?>
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-coins"></i>
+                            <?= htmlspecialchars($scan_result['progress_message']) ?>
+                        </div>
+                    <?php endif; ?>
                     <?php if (isset($scan_result['remaining_lessons']) && $scan_result['remaining_lessons'] <= 1): ?>
                         <div class="alert alert-warning mt-3">
                             <i class="fas fa-exclamation-triangle"></i>
@@ -1092,6 +1121,9 @@ if ($session_valid) {
                         <p><i class="fas fa-user-tie"></i><strong style="margin-right:4px;">Müəllim: </strong> <?= htmlspecialchars($scan_result['username']) ?></p>
                         <p><i class="fas fa-book"></i><strong style="margin-right:4px;">Fənn: </strong> <?= htmlspecialchars($scan_result['tehsil_ve_ixtisas']) ?></p>
                         <p><i class="fas fa-chart-line"></i><strong style="margin-right:4px;">Ümumi Gəldiyi Dərs: </strong> <?= $scan_result['total_scans'] ?></p>
+                        <?php if (!empty($scan_result['cycle_label'])): ?>
+                            <p><i class="fas fa-layer-group"></i><strong style="margin-right:4px;">Maaş dövrü: </strong> <?= htmlspecialchars($scan_result['cycle_label']) ?> (<?= (int) $scan_result['cycle_units'] ?> vahid)</p>
+                        <?php endif; ?>
                         <p><i class="fas fa-clock"></i><strong style="margin-right:4px;">Tarix: </strong> <?= $scan_result['scan_time'] ?></p>
                         <?php if ($scan_result['qr_code']): ?>
                             <img hidden src="<?= htmlspecialchars($scan_result['qr_code']) ?>" alt="Müəllim QR Kodu" class="qr-image">

@@ -3,6 +3,7 @@ ob_start(); // Start output buffering to prevent stray output
 date_default_timezone_set('Asia/Baku');
 include('db.php');
 require_once __DIR__ . '/muellim/qr_helpers.php';
+require_once __DIR__ . '/muellim/attendance_helpers.php';
 include('navbar_sidebar.php');
 
 // QR code directory configuration
@@ -276,16 +277,76 @@ if (in_array($user_role, ['super_admin', 'admin'], true)) {
     }
 }
 
-// Fetch selected teacher's data
-$teacher_sql = "SELECT id, u_id, tehsil_ve_ixtisas, username, fenn, qr_code, unvan FROM muellimler_new WHERE username = ? AND active_status = 'active'";
-$stmt = mysqli_prepare($conn, $teacher_sql);
-mysqli_stmt_bind_param($stmt, 's', $selected_teacher_username);
-mysqli_stmt_execute($stmt);
-$teacher_result = mysqli_stmt_get_result($stmt);
+// Fetch selected teacher's data (username, sonra u_id / FIN ehtiyatı)
 $current_teacher = null;
+$session_u_id = trim((string) ($_SESSION['u_id'] ?? ''));
+$session_fin = trim((string) ($_SESSION['fin_kod'] ?? ''));
 
-if ($teacher_result && mysqli_num_rows($teacher_result) > 0) {
-    $current_teacher = mysqli_fetch_assoc($teacher_result);
+$teacher_sql = "SELECT id, u_id, tehsil_ve_ixtisas, username, fenn, qr_code, unvan, telebeler
+                FROM muellimler_new
+                WHERE username = ? AND active_status = 'active'
+                LIMIT 1";
+$stmt = mysqli_prepare($conn, $teacher_sql);
+if ($stmt && $selected_teacher_username !== '') {
+    mysqli_stmt_bind_param($stmt, 's', $selected_teacher_username);
+    mysqli_stmt_execute($stmt);
+    $teacher_result = mysqli_stmt_get_result($stmt);
+    if ($teacher_result && mysqli_num_rows($teacher_result) > 0) {
+        $current_teacher = mysqli_fetch_assoc($teacher_result);
+    }
+    mysqli_stmt_close($stmt);
+}
+
+// Müəllim: session username FIN ola bilər — u_id ilə tap
+if (!$current_teacher && $user_role === 'teacher' && $session_u_id !== '') {
+    $stmt = mysqli_prepare(
+        $conn,
+        "SELECT id, u_id, tehsil_ve_ixtisas, username, fenn, qr_code, unvan, telebeler
+         FROM muellimler_new
+         WHERE u_id = ? AND active_status = 'active'
+         LIMIT 1"
+    );
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, 's', $session_u_id);
+        mysqli_stmt_execute($stmt);
+        $teacher_result = mysqli_stmt_get_result($stmt);
+        if ($teacher_result && mysqli_num_rows($teacher_result) > 0) {
+            $current_teacher = mysqli_fetch_assoc($teacher_result);
+            $selected_teacher_username = $current_teacher['username'];
+            $_SESSION['username'] = $current_teacher['username'];
+        }
+        mysqli_stmt_close($stmt);
+    }
+}
+
+// Hələ də yoxdursa: users.username (FIN) → u_id → muellimler
+if (!$current_teacher && $user_role === 'teacher') {
+    $finLookup = $session_fin !== '' ? $session_fin : $current_username;
+    $stmt = mysqli_prepare(
+        $conn,
+        "SELECT m.id, m.u_id, m.tehsil_ve_ixtisas, m.username, m.fenn, m.qr_code, m.unvan, m.telebeler
+         FROM users u
+         INNER JOIN muellimler_new m ON m.u_id = u.u_id
+         WHERE (u.username = ? OR u.u_id = ?) AND m.active_status = 'active'
+         LIMIT 1"
+    );
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, 'ss', $finLookup, $session_u_id);
+        mysqli_stmt_execute($stmt);
+        $teacher_result = mysqli_stmt_get_result($stmt);
+        if ($teacher_result && mysqli_num_rows($teacher_result) > 0) {
+            $current_teacher = mysqli_fetch_assoc($teacher_result);
+            $selected_teacher_username = $current_teacher['username'];
+            $_SESSION['username'] = $current_teacher['username'];
+            if ($finLookup !== '') {
+                $_SESSION['fin_kod'] = $finLookup;
+            }
+        }
+        mysqli_stmt_close($stmt);
+    }
+}
+
+if ($current_teacher) {
     try {
         $current_teacher = qr_activate_teacher($conn, $current_teacher);
     } catch (Exception $e) {
@@ -294,7 +355,6 @@ if ($teacher_result && mysqli_num_rows($teacher_result) > 0) {
 } else {
     $error_message = "Müəllim məlumatları tapılmadı.";
 }
-mysqli_stmt_close($stmt);
 
 // Handle month navigation - FIXED
 $selected_month = isset($_POST['selected_month']) ? $_POST['selected_month'] : date('m');
@@ -322,6 +382,47 @@ $prev_date = new DateTime("$selected_year-$selected_month-01");
 $prev_date->modify('-1 month');
 $next_date = new DateTime("$selected_year-$selected_month-01");
 $next_date->modify('+1 month');
+
+// Davamiyyət panelləri (bu gün / həftə / maaş / xəbərdarlıq)
+$todayPanel = [
+    'day_name' => '',
+    'gun_qrupu' => null,
+    'expected' => 0,
+    'scanned' => 0,
+    'pending' => 0,
+    'students' => [],
+];
+$weekPanel = ['group' => '1-4', 'week_start' => $week_start, 'days' => [], 'summary' => ''];
+$salaryReport = [
+    'students' => [],
+    'total_units_lifetime' => 0,
+    'total_units_period' => 0,
+    'period_start' => $monthly_start,
+    'period_end' => $monthly_end,
+    'rate_azn' => ATT_SALARY_RATE_AZN,
+    'amount_azn' => 0.0,
+];
+$alerts = ['pending_today' => [], 'near_complete' => [], 'inactive' => []];
+
+$todayIso = att_today_iso();
+$defaultWeekGroup = att_group_for_iso($todayIso) ?: '1-4';
+$selected_week_group = isset($_POST['week_group']) && isset(ATT_DAY_GROUPS[$_POST['week_group']])
+    ? $_POST['week_group']
+    : $defaultWeekGroup;
+
+if ($current_teacher) {
+    $telebelerJson = $current_teacher['telebeler'] ?? null;
+    $todayPanel = att_build_today_list($conn, $current_teacher['username'], $telebelerJson, $today);
+    $weekPanel = att_build_week_view($conn, $current_teacher['username'], $telebelerJson, $selected_week_group, $week_start);
+    $salaryReport = att_build_salary_report(
+        $conn,
+        $current_teacher['username'],
+        $telebelerJson,
+        $monthly_start,
+        $monthly_end
+    );
+    $alerts = att_build_alerts($todayPanel, $salaryReport['students'], 14);
+}
 ?>
 
 <!DOCTYPE html>
@@ -1089,10 +1190,14 @@ $next_date->modify('+1 month');
                     <p><i class="fas fa-chart-line"></i> Həftəlik Skanlar</p>
                 </div>
                 <div class="stat-card">
-                    <h3><?php echo date('H:i'); ?></h3>
+                    <h3 id="liveCurrentTime"><?php echo date('H:i:s'); ?></h3>
                     <p><i class="fas fa-clock"></i> Cari Vaxt</p>
                 </div>
             </div>
+
+            <?php if ($current_teacher): ?>
+                <?php include __DIR__ . '/qr_muellim/panels.php'; ?>
+            <?php endif; ?>
 
             <!-- Calendar Navigation - FIXED -->
             <div class="calendar-nav">
@@ -1366,6 +1471,30 @@ $next_date->modify('+1 month');
         // Auto refresh functionality with better user interaction tracking
         let lastInteraction = Date.now();
         let refreshInterval = 60000; // 60 seconds
+
+        // Cari vaxt — real-time (Bakı)
+        (function updateLiveClock() {
+            const el = document.getElementById('liveCurrentTime');
+            if (!el) return;
+            const tick = () => {
+                try {
+                    el.textContent = new Intl.DateTimeFormat('az-AZ', {
+                        timeZone: 'Asia/Baku',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    }).format(new Date());
+                } catch (e) {
+                    const d = new Date();
+                    el.textContent = String(d.getHours()).padStart(2, '0') + ':' +
+                        String(d.getMinutes()).padStart(2, '0') + ':' +
+                        String(d.getSeconds()).padStart(2, '0');
+                }
+            };
+            tick();
+            setInterval(tick, 1000);
+        })();
         
         // Track user interactions
         ['click', 'keydown', 'mousemove', 'scroll'].forEach(event => {

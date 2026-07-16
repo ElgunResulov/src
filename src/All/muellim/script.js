@@ -378,9 +378,27 @@ function validateTeacherForm() {
        $('#email').addClass('is-invalid');
        isValid = false;
    }
+
+   ['#ad', '#soyad'].forEach(function (sel) {
+       if (!$(sel).val()) {
+           $(sel).addClass('is-invalid');
+           isValid = false;
+       }
+   });
+
+   const finKod = String($('#fin_kod').val() || '').replace(/\s+/g, '').toUpperCase();
+   $('#fin_kod').val(finKod);
+   if (!/^[A-Z0-9]{7}$/.test(finKod)) {
+       $('#fin_kod').addClass('is-invalid');
+       isValid = false;
+   }
    
    return isValid;
 }
+
+$(document).on('input', '#fin_kod', function () {
+    this.value = String(this.value || '').replace(/\s+/g, '').toUpperCase().slice(0, 7);
+});
 
 // Email validation helper
 function isValidEmail(email) {
@@ -570,12 +588,11 @@ function fillTeacherForm(teacher) {
 
     $('#teacherId').val(teacher.id);
     
-    // Split username into ad and soyad
-    const usernameParts = teacher.username.split('.');
-    const ad = usernameParts[0] || '';
-    const soyad = usernameParts[1] || '';
-    $('#ad').val(ad);
-    $('#soyad').val(soyad);
+    // Ad.Soyad — əvvəlki kimi
+    const usernameParts = String(teacher.username || '').split('.');
+    $('#ad').val(usernameParts[0] || '');
+    $('#soyad').val(usernameParts.slice(1).join('.') || '');
+    $('#fin_kod').val(String(teacher.fin_kod || '').toUpperCase());
     
     $('#email').val(teacher.email);
     $('#telefon').val(teacher.telefon);

@@ -110,6 +110,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                         $_SESSION['company_id'] = $user['company_id'];
                         $_SESSION['u_id'] = $user['u_id'];
                         $_SESSION['login_time'] = time();
+
+                        // Müəllim: FIN ilə giriş → session-da Ad.Soyad (muellimler_new) saxlanılır
+                        if (($user['role'] ?? '') === 'teacher' && !empty($user['u_id'])) {
+                            $teacher_stmt = $conn->prepare("SELECT username FROM muellimler_new WHERE u_id = ? LIMIT 1");
+                            if ($teacher_stmt) {
+                                $teacher_stmt->bind_param('s', $user['u_id']);
+                                $teacher_stmt->execute();
+                                $teacher_result = $teacher_stmt->get_result();
+                                $teacher_row = $teacher_result ? $teacher_result->fetch_assoc() : null;
+                                $teacher_stmt->close();
+                                if (!empty($teacher_row['username'])) {
+                                    $_SESSION['username'] = $teacher_row['username'];
+                                    $_SESSION['fin_kod'] = $user['username'];
+                                }
+                            }
+                        }
                         
                         // Clean old sessions
                         $clean_stmt = $conn->prepare("DELETE FROM user_sessions WHERE user_id = ?");
